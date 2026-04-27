@@ -13,8 +13,9 @@ import '../styles/global.css';
   </head>
   <body>
     <canvas id="globe-canvas"></canvas>
-    <button id="toggle-panel" class="toggle-panel" aria-label="Toggle controls"></button>
-    <aside class="sky-panel">
+    <button id="toggle-panel" class="toggle-panel">Change Date & Location</button>
+    <div id="panel-backdrop" class="panel-backdrop"></div>
+    <aside class="sky-panel hidden">
       <div class="sky-panel__header">
         <h1>Night Sky</h1>
         <p id="sky-summary">San Francisco, CA · April 26, 2026 · 9:00 PM · UTC-07:00</p>
@@ -55,7 +56,30 @@ import '../styles/global.css';
     <div id="labels" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;"></div>
     <script>
       import '../scripts/globe.ts';
-      import '../scripts/panel-toggle.ts';
+
+      const toggleBtn = document.getElementById('toggle-panel') as HTMLButtonElement;
+      const skyPanel = document.querySelector('.sky-panel') as HTMLElement;
+      const backdrop = document.getElementById('panel-backdrop') as HTMLElement;
+
+      function closePanel() {
+        skyPanel.classList.add('hidden');
+        backdrop.classList.remove('visible');
+      }
+
+      function openPanel() {
+        skyPanel.classList.remove('hidden');
+        backdrop.classList.add('visible');
+      }
+
+      toggleBtn.addEventListener('click', () => {
+        if (skyPanel.classList.contains('hidden')) {
+          openPanel();
+        } else {
+          closePanel();
+        }
+      });
+
+      backdrop.addEventListener('click', closePanel);
     </script>
   </body>
 </html>

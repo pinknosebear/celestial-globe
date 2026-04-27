@@ -1,0 +1,25 @@
+- complementary [ref=e3]:
+  - generic [ref=e4]:
+    - heading "Night Sky" [level=1] [ref=e5]
+    - paragraph [ref=e6]: San Francisco, CA · April 26, 2026 · 9:00 PM · UTC-07:00
+  - generic [ref=e7]:
+    - generic [ref=e8]:
+      - generic [ref=e9]: Place
+      - textbox "Place" [ref=e10]: San Francisco, CA
+    - generic [ref=e11]:
+      - button "Find Place" [ref=e12] [cursor=pointer]
+      - button "Use My Location" [ref=e13] [cursor=pointer]
+    - generic [ref=e14]:
+      - paragraph [ref=e15]: Resolved from place search
+      - paragraph [ref=e16]: 37.7749, -122.4194 · America/Los_Angeles · 16 m
+    - generic [ref=e17]:
+      - generic [ref=e18]:
+        - generic [ref=e19]: Date
+        - textbox "Date" [ref=e20]: 2026-04-26
+      - generic [ref=e21]:
+        - generic [ref=e22]: Time
+        - textbox "Time" [ref=e23]: 21:00
+    - generic [ref=e25]:
+      - generic [ref=e26]: Elevation (m)
+      - spinbutton "Elevation (m)" [ref=e27]: "16"
+    - button "Update Sky" [ref=e28] [cursor=pointer]
