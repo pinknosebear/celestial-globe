@@ -788,10 +788,13 @@ async function loadConstellations(
       const pts = segment.map((coord: number[]) =>
         raDegDecDegToXYZ(coord[0], coord[1], SPHERE_RADIUS)
       );
+      const isZodiac = ['Ari', 'Tau', 'Gem', 'Cnc', 'Leo', 'Vir', 'Lib', 'Sco', 'Sgr', 'Cap', 'Aqr', 'Psc'].includes(abbrev);
+      const lineColor = isZodiac ? 0x8899aa : 0x445566;
+      const lineOpacity = 0.7;
       const lineMat = new THREE.LineBasicMaterial({
-        color: 0x8899aa,
+        color: lineColor,
         transparent: true,
-        opacity: 0.35,
+        opacity: lineOpacity,
         depthWrite: false,
       });
       const segLine = new THREE.Line(
@@ -889,7 +892,6 @@ function onMouseMove(e: MouseEvent) {
       }
       sizeAttr.needsUpdate = true;
       brightAttr.needsUpdate = true;
-      for (const m of prev.mats) { m.opacity = 0.35; }
       prev.label.visible = false;
     }
 
@@ -905,7 +907,6 @@ function onMouseMove(e: MouseEvent) {
       }
       sizeAttr.needsUpdate = true;
       brightAttr.needsUpdate = true;
-      for (const m of next.mats) { m.opacity = 0.85; }
       next.label.visible = true;
     }
 

@@ -4,7 +4,8 @@ import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-const ZODIAC_IDS = ['Ari', 'Tau', 'Gem', 'Cnc', 'Leo', 'Vir', 'Lib', 'Sco', 'Sgr', 'Cap', 'Aqr', 'Psc'];
+// 12 zodiac + 25 other constellations
+const CONSTELLATIONS_TO_INCLUDE = ['Ari', 'Tau', 'Gem', 'Cnc', 'Leo', 'Vir', 'Lib', 'Sco', 'Sgr', 'Cap', 'Aqr', 'Psc', 'Ori', 'UMa', 'Dra', 'Cas', 'Her', 'Per', 'Aur', 'Cyg', 'Lyr', 'Aql', 'Cen', 'Car', 'And', 'Peg', 'Cep', 'Cet', 'Oph', 'Ser', 'Boo', 'Cor', 'CrB', 'Crv', 'Hya', 'Pyx', 'Pup', 'Mon', 'Lep', 'CMa'];
 
 const LINES_URL = 'https://raw.githubusercontent.com/ofrohn/d3-celestial/master/data/constellations.lines.json';
 const NAMES_URL = 'https://raw.githubusercontent.com/ofrohn/d3-celestial/master/data/constellations.json';
@@ -29,7 +30,7 @@ const output = {};
 
 for (const feature of linesData.features) {
   const id = feature.id;
-  if (!ZODIAC_IDS.includes(id)) continue;
+  if (!CONSTELLATIONS_TO_INCLUDE.includes(id)) continue;
 
   // MultiLineString: array of line segments, each a [[ra,dec], ...] array
   // d3-celestial uses RA in degrees (0-360), Dec in degrees
@@ -42,9 +43,9 @@ for (const feature of linesData.features) {
   };
 }
 
-const missing = ZODIAC_IDS.filter(id => !output[id]);
+const missing = CONSTELLATIONS_TO_INCLUDE.filter(id => !output[id]);
 if (missing.length) {
-  console.warn('Warning: missing zodiac constellations:', missing.join(', '));
+  console.warn('Warning: missing constellations:', missing.join(', '));
 }
 
 const outPath = join(__dirname, '../public/zodiac.json');
