@@ -3,9 +3,6 @@ import * as Astronomy from 'astronomy-engine';
 import tzLookup from 'tz-lookup';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
-import { Line2 } from 'three/addons/lines/Line2.js';
-import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
-import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
@@ -283,8 +280,8 @@ interface ConstellationState {
   starIndices: number[];        // indices into zodiacPoints geometry
   baseSizes: Float32Array;
   baseBrightnesses: Float32Array;
-  lines: Line2[];               // one per discrete segment
-  mats: LineMaterial[];
+  lines: THREE.Line[];
+  mats: THREE.LineBasicMaterial[];
   label: CSS2DObject;
   hitMesh: THREE.Mesh;
 }
@@ -783,28 +780,24 @@ async function loadConstellations(
     const memberSet = zodiacMemberMap.get(abbrev)!;
     const starIndices = [...memberSet].map(globalIdx => globalToZodiac.get(globalIdx)!).filter(i => i !== undefined);
 
-    // One Line2 per discrete segment — Line2 has no pen-up primitive
-    const segLines: Line2[] = [];
-    const segMats: LineMaterial[] = [];
+    const segLines: THREE.Line[] = [];
+    const segMats: THREE.LineBasicMaterial[] = [];
 
     for (const segment of entry.lines) {
       if (segment.length < 2) continue;
-      const flat: number[] = [];
-      for (const [raDeg, decDeg] of segment) {
-        const v = raDegDecDegToXYZ(raDeg, decDeg, SPHERE_RADIUS);
-        flat.push(v.x, v.y, v.z);
-      }
-      const lineGeo = new LineGeometry();
-      lineGeo.setPositions(flat);
-      const lineMat = new LineMaterial({
-        color: 0xf0e0b4,
-        linewidth: 1.4,
+      const pts = segment.map((coord: number[]) =>
+        raDegDecDegToXYZ(coord[0], coord[1], SPHERE_RADIUS)
+      );
+      const lineMat = new THREE.LineBasicMaterial({
+        color: 0x8899aa,
         transparent: true,
-        opacity: 0.82,
-        resolution: new THREE.Vector2(window.innerWidth, window.innerHeight),
+        opacity: 0.35,
+        depthWrite: false,
       });
-      const segLine = new Line2(lineGeo, lineMat);
-      segLine.computeLineDistances();
+      const segLine = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints(pts),
+        lineMat
+      );
       skyGroup.add(segLine);
       segLines.push(segLine);
       segMats.push(lineMat);
@@ -896,7 +889,7 @@ function onMouseMove(e: MouseEvent) {
       }
       sizeAttr.needsUpdate = true;
       brightAttr.needsUpdate = true;
-      for (const m of prev.mats) { m.opacity = 0.82; m.linewidth = 1.4; }
+      for (const m of prev.mats) { m.opacity = 0.35; }
       prev.label.visible = false;
     }
 
@@ -912,7 +905,7 @@ function onMouseMove(e: MouseEvent) {
       }
       sizeAttr.needsUpdate = true;
       brightAttr.needsUpdate = true;
-      for (const m of next.mats) { m.opacity = 1.0; m.linewidth = 2.6; }
+      for (const m of next.mats) { m.opacity = 0.85; }
       next.label.visible = true;
     }
 
@@ -1030,10 +1023,6 @@ function onResize() {
   composer.setSize(window.innerWidth, window.innerHeight);
   bloomPass.resolution.set(window.innerWidth, window.innerHeight);
   labelRenderer.setSize(window.innerWidth, window.innerHeight);
-  const res = new THREE.Vector2(window.innerWidth, window.innerHeight);
-  for (const c of constellations) {
-    for (const m of c.mats) m.resolution = res;
-  }
 }
 
 window.addEventListener('resize', onResize);
