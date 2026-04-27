@@ -867,9 +867,9 @@ async function loadConstellations(
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 
-function onMouseMove(e: MouseEvent) {
-  mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-  mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+function updateHover(clientX: number, clientY: number) {
+  mouse.x = (clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(clientY / window.innerHeight) * 2 + 1;
 
   raycaster.setFromCamera(mouse, camera);
   const hitMeshes = constellations.map(c => c.hitMesh);
@@ -880,7 +880,6 @@ function onMouseMove(e: MouseEvent) {
   const newHoveredPlanet = planetHits.length > 0 ? (planetHits[0].object.userData.planetName as string) : null;
 
   if (newHovered !== hoveredAbbrev) {
-    // Restore previous
     if (hoveredAbbrev) {
       const prev = constellations.find(c => c.abbrev === hoveredAbbrev)!;
       const sizeAttr = zodiacPoints!.geometry.attributes['starSize'] as THREE.BufferAttribute;
@@ -895,7 +894,6 @@ function onMouseMove(e: MouseEvent) {
       prev.label.visible = false;
     }
 
-    // Activate new
     if (newHovered) {
       const next = constellations.find(c => c.abbrev === newHovered)!;
       const sizeAttr = zodiacPoints!.geometry.attributes['starSize'] as THREE.BufferAttribute;
@@ -921,7 +919,12 @@ function onMouseMove(e: MouseEvent) {
   }
 }
 
-window.addEventListener('mousemove', onMouseMove);
+window.addEventListener('mousemove', (e) => updateHover(e.clientX, e.clientY));
+window.addEventListener('touchmove', (e) => {
+  if (e.touches.length > 0) {
+    updateHover(e.touches[0].clientX, e.touches[0].clientY);
+  }
+}, { passive: true });
 
 // --- Main load sequence ---
 
