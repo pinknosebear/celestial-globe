@@ -4,7 +4,7 @@
   "version": "0.0.1",
   "scripts": {
     "dev": "astro dev",
-    "prebuild": "node tools/ensure-generated-data.mjs",
+    "prebuild": "node tools/process-stars.mjs && node tools/process-constellations.mjs && node tools/ensure-generated-data.mjs",
     "build": "astro build",
     "preview": "astro preview",
     "setup-data": "node tools/process-stars.mjs && node tools/process-constellations.mjs",
