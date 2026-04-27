@@ -1,0 +1,59 @@
+---
+import '../styles/global.css';
+---
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Celestial Globe</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;1,300&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <canvas id="globe-canvas"></canvas>
+    <aside class="sky-panel">
+      <div class="sky-panel__header">
+        <h1>Night Sky</h1>
+        <p id="sky-summary">San Francisco, CA · April 26, 2026 · 9:00 PM · UTC-07:00</p>
+      </div>
+      <form id="sky-controls" class="sky-form">
+        <label>
+          <span>Place</span>
+          <input id="place-name" name="placeName" type="text" value="San Francisco, CA" />
+        </label>
+        <div class="sky-form__actions">
+          <button id="search-place" type="button">Find Place</button>
+          <button id="use-my-location" type="button">Use My Location</button>
+        </div>
+        <div id="place-results" class="place-results" aria-live="polite"></div>
+        <div class="sky-form__meta">
+          <p id="location-status">Resolved from place search</p>
+          <p id="location-details">37.7749, -122.4194 · America/Los_Angeles · 16 m</p>
+        </div>
+        <div class="sky-form__row">
+          <label>
+            <span>Date</span>
+            <input id="sky-date" name="date" type="date" value="2026-04-26" />
+          </label>
+          <label>
+            <span>Time</span>
+            <input id="sky-time" name="time" type="time" value="21:00" />
+          </label>
+        </div>
+        <div class="sky-form__row sky-form__row--narrow">
+          <label>
+            <span>Elevation (m)</span>
+            <input id="elevation" name="elevation" type="number" step="1" value="16" />
+          </label>
+        </div>
+        <button type="submit">Update Sky</button>
+      </form>
+    </aside>
+    <div id="labels" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;"></div>
+    <script>
+      import '../scripts/globe.ts';
+    </script>
+  </body>
+</html>

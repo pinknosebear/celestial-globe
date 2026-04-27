@@ -1,0 +1,199 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #081f2b;
+  color: #f4efe4;
+  font-family: 'Cormorant Garamond', serif;
+}
+
+#globe-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.sky-panel {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  width: min(340px, calc(100vw - 40px));
+  padding: 16px 16px 14px;
+  border: 1px solid rgba(194, 211, 220, 0.2);
+  background: rgba(7, 22, 30, 0.72);
+  backdrop-filter: blur(18px);
+  z-index: 2;
+}
+
+.sky-panel__header {
+  margin-bottom: 12px;
+}
+
+.sky-panel__header h1 {
+  font-size: 30px;
+  font-weight: 300;
+  line-height: 1;
+}
+
+.sky-panel__header p {
+  margin-top: 6px;
+  color: rgba(236, 241, 245, 0.78);
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+.sky-form {
+  display: grid;
+  gap: 10px;
+}
+
+.sky-form__actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.sky-form__row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.sky-form__row--narrow {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.sky-form label {
+  display: grid;
+  gap: 5px;
+}
+
+.sky-form__meta {
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid rgba(194, 211, 220, 0.14);
+  background: rgba(10, 31, 43, 0.45);
+}
+
+.sky-form__meta p:first-child {
+  color: rgba(244, 239, 228, 0.9);
+  font-size: 14px;
+}
+
+.sky-form__meta p:last-child {
+  color: rgba(236, 241, 245, 0.64);
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.sky-form span {
+  color: rgba(236, 241, 245, 0.72);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.sky-form input {
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid rgba(194, 211, 220, 0.18);
+  border-radius: 0;
+  background: rgba(10, 31, 43, 0.82);
+  color: #f4efe4;
+  font: inherit;
+  font-size: 16px;
+}
+
+.sky-form input:focus {
+  outline: 1px solid rgba(233, 217, 169, 0.5);
+  border-color: rgba(233, 217, 169, 0.5);
+}
+
+.sky-form button {
+  min-height: 40px;
+  border: 1px solid rgba(233, 217, 169, 0.4);
+  background: rgba(233, 217, 169, 0.14);
+  color: #f4efe4;
+  font: inherit;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.sky-form button:hover {
+  background: rgba(233, 217, 169, 0.2);
+}
+
+.place-results {
+  display: grid;
+  gap: 6px;
+}
+
+.place-results:empty {
+  display: none;
+}
+
+.place-results button {
+  width: 100%;
+  min-height: 36px;
+  padding: 8px 10px;
+  border: 1px solid rgba(194, 211, 220, 0.14);
+  background: rgba(10, 31, 43, 0.62);
+  color: #f4efe4;
+  font: inherit;
+  font-size: 15px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.place-results button:hover {
+  background: rgba(233, 217, 169, 0.14);
+}
+
+.zodiac-label {
+  color: #ffffff;
+  font-size: 14px;
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 300;
+  font-style: italic;
+  letter-spacing: 0.06em;
+  pointer-events: none;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.4);
+  transform: translate(-50%, -100%);
+  white-space: nowrap;
+}
+
+.planet-label {
+  color: #f8edd0;
+  font-size: 12px;
+  font-weight: 300;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-shadow: 0 0 10px rgba(255, 238, 189, 0.45);
+  transform: translate(-50%, -130%);
+  white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+  .sky-panel {
+    top: 12px;
+    left: 12px;
+    width: calc(100vw - 24px);
+    padding: 14px;
+  }
+
+  .sky-form__row {
+    grid-template-columns: 1fr;
+  }
+
+  .sky-form__actions {
+    grid-template-columns: 1fr;
+  }
+}

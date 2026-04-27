@@ -1,0 +1,23 @@
+{
+  "name": "astro-personal",
+  "type": "module",
+  "version": "0.0.1",
+  "scripts": {
+    "dev": "astro dev",
+    "prebuild": "node tools/ensure-generated-data.mjs",
+    "build": "astro build",
+    "preview": "astro preview",
+    "setup-data": "node tools/process-stars.mjs && node tools/process-constellations.mjs",
+    "stars": "node tools/process-stars.mjs",
+    "constellations": "node tools/process-constellations.mjs"
+  },
+  "dependencies": {
+    "astro": "^5.0.0",
+    "astronomy-engine": "^2.1.19",
+    "three": "^0.175.0",
+    "tz-lookup": "^6.1.25"
+  },
+  "devDependencies": {
+    "@types/three": "^0.175.0"
+  }
+}
