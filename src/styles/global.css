@@ -181,12 +181,69 @@ html, body {
   white-space: nowrap;
 }
 
+.toggle-panel {
+  display: none;
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(194, 211, 220, 0.2);
+  background: rgba(7, 22, 30, 0.72);
+  backdrop-filter: blur(18px);
+  border-radius: 4px;
+  cursor: pointer;
+  z-index: 3;
+  padding: 0;
+}
+
+.toggle-panel::before,
+.toggle-panel::after {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 2px;
+  background: #f4efe4;
+  left: 50%;
+  top: 50%;
+  transform: translateX(-50%) translateY(-50%) rotate(0deg);
+  transition: transform 0.3s;
+}
+
+.toggle-panel::before {
+  transform: translateX(-50%) translateY(-6px) rotate(0deg);
+}
+
+.toggle-panel::after {
+  transform: translateX(-50%) translateY(6px) rotate(0deg);
+}
+
+.toggle-panel.open::before {
+  transform: translateX(-50%) translateY(-50%) rotate(45deg);
+}
+
+.toggle-panel.open::after {
+  transform: translateX(-50%) translateY(-50%) rotate(-45deg);
+}
+
 @media (max-width: 720px) {
+  .toggle-panel {
+    display: block;
+  }
+
   .sky-panel {
     top: 12px;
     left: 12px;
     width: calc(100vw - 24px);
     padding: 14px;
+    transform: translateX(-110vw);
+    transition: transform 0.3s ease-out;
+    max-height: calc(100vh - 24px);
+    overflow-y: auto;
+  }
+
+  .sky-panel.visible {
+    transform: translateX(0);
   }
 
   .sky-form__row {
