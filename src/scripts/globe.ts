@@ -11,6 +11,16 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 const SPHERE_RADIUS = 100;
 const GRATICULE_STEP = 30;
 const GRATICULE_SEGMENTS = 128;
+const GLOBE_VIEW_THRESHOLD = SPHERE_RADIUS;
+
+interface IntroAnimState {
+  startDir: THREE.Vector3;
+  startDist: number;
+  endDist: number;
+  startTime: number;
+  duration: number;
+}
+
 const DEFAULT_SKY_STATE = {
   placeName: 'San Francisco, CA',
   latitude: 37.7749,
@@ -117,6 +127,7 @@ controls.maxDistance = 200;
 controls.rotateSpeed = -1;
 controls.enableDamping = true;
 controls.dampingFactor = 0.05;
+controls.autoRotateSpeed = -1.6;
 
 // --- Graticule ---
 
@@ -305,6 +316,7 @@ const planets: PlanetState[] = [];
 let hoveredAbbrev: string | null = null;
 let hoveredPlanetName: string | null = null;
 let currentSkyState: SkyState = { ...DEFAULT_SKY_STATE };
+let introAnim: IntroAnimState | null = null;
 
 function multiply3x3(a: number[][], b: number[][]) {
   return a.map((row, rowIndex) =>
@@ -926,6 +938,14 @@ window.addEventListener('touchmove', (e) => {
   }
 }, { passive: true });
 
+// Cancel intro animation on user interaction
+renderer.domElement.addEventListener('mousedown', () => {
+  introAnim = null;
+});
+renderer.domElement.addEventListener('wheel', () => {
+  introAnim = null;
+}, { passive: true });
+
 // --- Main load sequence ---
 
 async function init() {
@@ -983,6 +1003,19 @@ async function init() {
 
   setupControls();
   applySkyState({ ...DEFAULT_SKY_STATE });
+
+  // Trigger zoom-out animation after sky state is loaded
+  setTimeout(() => {
+    if (!introAnim) {
+      introAnim = {
+        startDir: camera.position.clone().normalize(),
+        startDist: camera.position.length(),
+        endDist: 200,
+        startTime: performance.now(),
+        duration: 5500, // slower zoom-out
+      };
+    }
+  }, 1200); // longer delay before animation starts
 }
 
 init();
@@ -994,7 +1027,24 @@ const animationClock = new THREE.Clock();
 
 function animate() {
   animFrameId = requestAnimationFrame(animate);
-  controls.update();
+
+  // Handle intro zoom-out animation
+  if (introAnim) {
+    const progress = Math.min(1, (performance.now() - introAnim.startTime) / introAnim.duration);
+    const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+    const targetDist = THREE.MathUtils.lerp(introAnim.startDist, introAnim.endDist, eased);
+    camera.position.copy(introAnim.startDir.clone().multiplyScalar(targetDist));
+
+    if (progress >= 1) {
+      introAnim = null;
+      controls.update(); // sync controls state after animation ends
+    }
+  } else {
+    controls.update();
+    const cameraDistance = camera.position.length();
+    controls.autoRotate = cameraDistance > GLOBE_VIEW_THRESHOLD;
+  }
+
   const elapsed = animationClock.getElapsedTime();
 
   // t=0 fully zoomed in (dist=8), t=1 fully zoomed out (dist=200)
