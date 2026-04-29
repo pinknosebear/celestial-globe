@@ -65,6 +65,14 @@ export function handleConstellationHover(
       // When hovering a zodiac sign: brighten that sign, dim all others
       const next = constellations.find(c => c.abbrev === newHovered)!;
 
+      // Hide all labels first
+      for (const constellation of constellations) {
+        constellation.label.visible = false;
+        if (constellation.label.element) {
+          constellation.label.element.style.display = 'none';
+        }
+      }
+
       // Dim all other constellations
       for (const constellation of constellations) {
         if (constellation.abbrev !== newHovered) {
@@ -76,7 +84,7 @@ export function handleConstellationHover(
         }
       }
 
-      // Brighten hovered constellation
+      // Brighten hovered constellation and show its label
       for (let i = 0; i < next.starIndices.length; i++) {
         const si = next.starIndices[i];
         sizeAttr.setX(si, next.baseSizes[i] * 1.8);
@@ -86,11 +94,16 @@ export function handleConstellationHover(
       sizeAttr.needsUpdate = true;
       brightAttr.needsUpdate = true;
       next.label.visible = true;
+      if (next.label.element) {
+        next.label.element.style.display = 'block';
+      }
     } else {
-      // When hover ends: restore all to base brightness
-      if (prevHovered) {
-        const prev = constellations.find(c => c.abbrev === prevHovered)!;
-        prev.label.visible = false;
+      // When hover ends: restore all to base brightness and hide all labels
+      for (const constellation of constellations) {
+        constellation.label.visible = false;
+        if (constellation.label.element) {
+          constellation.label.element.style.display = 'none';
+        }
       }
 
       for (const constellation of constellations) {
