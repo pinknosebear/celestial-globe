@@ -68,8 +68,6 @@ let hoveredPlanetName: string | null = null;
 let currentSkyState: SkyState = { ...DEFAULT_SKY_STATE };
 let introAnim: IntroAnimState | null = null;
 let enableRotation = true;
-const zodiacRegionMeshes: Map<string, THREE.Mesh> = new Map();
-let currentHighlightedZodiacRegion: THREE.Mesh | null = null;
 
 // --- Utility Functions (imported from calculations.ts) ---
 
@@ -89,38 +87,6 @@ function formatOffsetMinutes(offsetMinutes: number) {
   const hours = Math.floor(absoluteMinutes / 60).toString().padStart(2, '0');
   const minutes = (absoluteMinutes % 60).toString().padStart(2, '0');
   return `${sign}${hours}:${minutes}`;
-}
-
-function createZodiacRegionMeshes(skyGroup: THREE.Group) {
-  const ZODIAC_SIGNS = ['Ari', 'Tau', 'Gem', 'Cnc', 'Leo', 'Vir', 'Lib', 'Sco', 'Sgr', 'Cap', 'Aqr', 'Psc'];
-  const ZODIAC_NAMES = ['Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Virgo', 'Libra', 'Scorpio', 'Sagittarius', 'Capricorn', 'Aquarius', 'Pisces'];
-
-  for (let i = 0; i < 12; i++) {
-    const startLon = i * 30; // ecliptic longitude start (degrees)
-    const endLon = (i + 1) * 30;
-    const signAbbrev = ZODIAC_SIGNS[i];
-    const signName = ZODIAC_NAMES[i];
-
-    // Create a band geometry covering the ecliptic longitude range for this sign
-    // For now, create a simple semi-transparent band by using a TorusGeometry as a placeholder
-    // Real implementation would use custom geometry
-    const geometry = new THREE.SphereGeometry(SPHERE_RADIUS, 32, 32);
-    const material = new THREE.MeshBasicMaterial({
-      color: 0xcccccc,
-      transparent: true,
-      opacity: 0.15,
-      side: THREE.BackSide,
-      depthWrite: false,
-    });
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.visible = false;
-    (mesh.userData as any).zodiacSign = signAbbrev;
-    (mesh.userData as any).eclipticStart = startLon;
-    (mesh.userData as any).eclipticEnd = endLon;
-
-    skyGroup.add(mesh);
-    zodiacRegionMeshes.set(signAbbrev, mesh);
-  }
 }
 
 function getTimeZoneOffsetMinutes(date: Date, timeZone: string) {
@@ -174,16 +140,6 @@ const handleMouseMove = (e: Event) => {
   const me = e as MouseEvent;
   updateHover(me.clientX, me.clientY, camera, constellations, planets, (abbrev) => {
     hoveredAbbrev = handleConstellationHover(abbrev, hoveredAbbrev, constellations, zodiacPoints);
-    // Show/hide zodiac region highlight
-    if (abbrev && zodiacRegionMeshes.has(abbrev)) {
-      if (currentHighlightedZodiacRegion) currentHighlightedZodiacRegion.visible = false;
-      const regionMesh = zodiacRegionMeshes.get(abbrev)!;
-      regionMesh.visible = true;
-      currentHighlightedZodiacRegion = regionMesh;
-    } else {
-      if (currentHighlightedZodiacRegion) currentHighlightedZodiacRegion.visible = false;
-      currentHighlightedZodiacRegion = null;
-    }
   }, (name) => {
     hoveredPlanetName = handlePlanetHover(name, hoveredPlanetName, planets);
   });
@@ -194,16 +150,6 @@ const handleTouchMove = (e: Event) => {
   if (te.touches.length > 0) {
     updateHover(te.touches[0].clientX, te.touches[0].clientY, camera, constellations, planets, (abbrev) => {
       hoveredAbbrev = handleConstellationHover(abbrev, hoveredAbbrev, constellations, zodiacPoints);
-      // Show/hide zodiac region highlight
-      if (abbrev && zodiacRegionMeshes.has(abbrev)) {
-        if (currentHighlightedZodiacRegion) currentHighlightedZodiacRegion.visible = false;
-        const regionMesh = zodiacRegionMeshes.get(abbrev)!;
-        regionMesh.visible = true;
-        currentHighlightedZodiacRegion = regionMesh;
-      } else {
-        if (currentHighlightedZodiacRegion) currentHighlightedZodiacRegion.visible = false;
-        currentHighlightedZodiacRegion = null;
-      }
     }, (name) => {
       hoveredPlanetName = handlePlanetHover(name, hoveredPlanetName, planets);
     });
@@ -247,9 +193,6 @@ async function init() {
   );
   zodiacPoints = result.zodiacPoints;
   constellations.push(...result.constellations);
-
-  // Create zodiac region meshes for highlighting
-  createZodiacRegionMeshes(skyGroup);
 
   // Create planets
   planets.push(...createPlanets(planetGroup));

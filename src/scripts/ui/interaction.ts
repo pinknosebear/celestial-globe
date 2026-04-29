@@ -45,32 +45,53 @@ export function handleConstellationHover(
   zodiacPoints: THREE.Points | null
 ): string | null {
   if (newHovered !== prevHovered) {
-    if (prevHovered && zodiacPoints) {
-      const prev = constellations.find(c => c.abbrev === prevHovered)!;
-      const sizeAttr = zodiacPoints.geometry.attributes['starSize'] as THREE.BufferAttribute;
-      const brightAttr = zodiacPoints.geometry.attributes['brightness'] as THREE.BufferAttribute;
-      for (let i = 0; i < prev.starIndices.length; i++) {
-        const si = prev.starIndices[i];
-        sizeAttr.setX(si, prev.baseSizes[i]);
-        brightAttr.setX(si, prev.baseBrightnesses[i]);
-      }
-      sizeAttr.needsUpdate = true;
-      brightAttr.needsUpdate = true;
-      prev.label.visible = false;
-    }
+    if (!zodiacPoints) return newHovered;
 
-    if (newHovered && zodiacPoints) {
+    const sizeAttr = zodiacPoints.geometry.attributes['starSize'] as THREE.BufferAttribute;
+    const brightAttr = zodiacPoints.geometry.attributes['brightness'] as THREE.BufferAttribute;
+
+    if (newHovered) {
+      // When hovering a zodiac sign: brighten that sign, dim all others
       const next = constellations.find(c => c.abbrev === newHovered)!;
-      const sizeAttr = zodiacPoints.geometry.attributes['starSize'] as THREE.BufferAttribute;
-      const brightAttr = zodiacPoints.geometry.attributes['brightness'] as THREE.BufferAttribute;
+
+      // Dim all other constellations
+      for (const constellation of constellations) {
+        if (constellation.abbrev !== newHovered) {
+          for (let i = 0; i < constellation.starIndices.length; i++) {
+            const si = constellation.starIndices[i];
+            sizeAttr.setX(si, constellation.baseSizes[i] * 0.4);
+            brightAttr.setX(si, constellation.baseBrightnesses[i] * 0.25);
+          }
+        }
+      }
+
+      // Brighten hovered constellation
       for (let i = 0; i < next.starIndices.length; i++) {
         const si = next.starIndices[i];
-        sizeAttr.setX(si, next.baseSizes[i] * 1.5);
-        brightAttr.setX(si, Math.min(1.0, next.baseBrightnesses[i] * 1.2));
+        sizeAttr.setX(si, next.baseSizes[i] * 1.8);
+        brightAttr.setX(si, Math.min(1.0, next.baseBrightnesses[i] * 1.3));
       }
+
       sizeAttr.needsUpdate = true;
       brightAttr.needsUpdate = true;
       next.label.visible = true;
+    } else {
+      // When hover ends: restore all to base brightness
+      if (prevHovered) {
+        const prev = constellations.find(c => c.abbrev === prevHovered)!;
+        prev.label.visible = false;
+      }
+
+      for (const constellation of constellations) {
+        for (let i = 0; i < constellation.starIndices.length; i++) {
+          const si = constellation.starIndices[i];
+          sizeAttr.setX(si, constellation.baseSizes[i]);
+          brightAttr.setX(si, constellation.baseBrightnesses[i]);
+        }
+      }
+
+      sizeAttr.needsUpdate = true;
+      brightAttr.needsUpdate = true;
     }
   }
 
