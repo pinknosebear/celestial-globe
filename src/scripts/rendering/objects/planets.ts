@@ -30,7 +30,7 @@ export function createPlanets(planetGroup: THREE.Group): PlanetState[] {
 
     const div = document.createElement('div');
     div.className = 'planet-label';
-    div.innerHTML = `<span class="planet-name">${planetDef.glyph}</span><span class="planet-info"></span>`;
+    div.innerHTML = `<span class="planet-info"></span><span class="planet-name">${planetDef.glyph}</span>`;
     const label = new CSS2DObject(div);
     label.position.set(0, 0, 0);
     label.visible = false;
