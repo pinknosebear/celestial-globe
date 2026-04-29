@@ -112,12 +112,13 @@ export async function loadConstellations(
     const segLines: THREE.Line[] = [];
     const segMats: THREE.LineBasicMaterial[] = [];
 
+    const isZodiac = CONSTELLATIONS.zodiacSet.includes(abbrev as any);
+
     for (const segment of entry.lines) {
       if (segment.length < 2) continue;
       const pts = segment.map((coord: number[]) =>
         raDegDecDegToXYZ(coord[0], coord[1], SPHERE.radius)
       );
-      const isZodiac = CONSTELLATIONS.zodiacSet.includes(abbrev as any);
       const lineColor = isZodiac ? THEME.colors.constellationLinesZodiac : THEME.colors.constellationLines;
       const lineMat = new THREE.LineBasicMaterial({
         color: lineColor,
@@ -129,7 +130,10 @@ export async function loadConstellations(
         new THREE.BufferGeometry().setFromPoints(pts),
         lineMat
       );
-      skyGroup.add(segLine);
+      // Only render zodiac constellations for now (non-zodiac are disabled for debugging)
+      if (isZodiac) {
+        skyGroup.add(segLine);
+      }
       segLines.push(segLine);
       segMats.push(lineMat);
     }
