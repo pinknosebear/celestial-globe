@@ -62,6 +62,15 @@ export function handleConstellationHover(
     const sizeAttr = zodiacPoints.geometry.attributes['starSize'] as THREE.BufferAttribute;
     const brightAttr = zodiacPoints.geometry.attributes['brightness'] as THREE.BufferAttribute;
 
+    // Always restore all stars to base brightness first (clear any previous zodiac boost)
+    for (const constellation of constellations) {
+      for (let i = 0; i < constellation.starIndices.length; i++) {
+        const si = constellation.starIndices[i];
+        sizeAttr.setX(si, constellation.baseSizes[i]);
+        brightAttr.setX(si, constellation.baseBrightnesses[i]);
+      }
+    }
+
     if (newHovered && isZodiac) {
       // Zodiac constellation: brighten stars and show label
       const next = constellations.find(c => c.abbrev === newHovered)!;
@@ -72,8 +81,6 @@ export function handleConstellationHover(
         brightAttr.setX(si, Math.min(1.0, next.baseBrightnesses[i] * 2.0));
       }
 
-      sizeAttr.needsUpdate = true;
-      brightAttr.needsUpdate = true;
       next.label.visible = true;
       if (next.label.element) {
         next.label.element.style.display = 'block';
@@ -85,19 +92,10 @@ export function handleConstellationHover(
       if (next.label.element) {
         next.label.element.style.display = 'block';
       }
-    } else {
-      // Hover ended: restore all zodiac brightness to base
-      for (const constellation of constellations) {
-        for (let i = 0; i < constellation.starIndices.length; i++) {
-          const si = constellation.starIndices[i];
-          sizeAttr.setX(si, constellation.baseSizes[i]);
-          brightAttr.setX(si, constellation.baseBrightnesses[i]);
-        }
-      }
-
-      sizeAttr.needsUpdate = true;
-      brightAttr.needsUpdate = true;
     }
+
+    sizeAttr.needsUpdate = true;
+    brightAttr.needsUpdate = true;
   }
 
   return newHovered;
