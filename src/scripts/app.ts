@@ -71,6 +71,7 @@ let hoveredAbbrev: string | null = null;
 let hoveredPlanetName: string | null = null;
 let currentSkyState: SkyState = { ...DEFAULT_SKY_STATE };
 let introAnim: IntroAnimState | null = null;
+let enableRotation = true;
 
 // --- Utility Functions ---
 
@@ -235,10 +236,8 @@ async function init() {
 
   // Setup UI interactions
   uiElements.searchPlaceButton.addEventListener('click', async () => {
-    await handlePlaceSearch(uiElements.placeNameInput.value, uiElements, async (place) => {
-      const newState = { ...currentSkyState, ...place };
-      newState.timeZone = tzLookup.tz(place.latitude, place.longitude);
-      await applySkyState(newState);
+    await handlePlaceSearch(uiElements.placeNameInput.value, uiElements, (place) => {
+      uiElements.placeNameInput.value = place.name;
     });
   });
 
@@ -246,20 +245,15 @@ async function init() {
     uiElements.locationStatus.textContent = 'Getting location...';
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
-        const newState = {
-          ...currentSkyState,
-          latitude: pos.coords.latitude,
-          longitude: pos.coords.longitude,
-          elevation: pos.coords.altitude || 0,
-        };
-        newState.timeZone = tzLookup.tz(pos.coords.latitude, pos.coords.longitude);
+        let placeName = `${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`;
         try {
           const reversedPlace = await reverseGeocode(pos.coords.latitude, pos.coords.longitude);
-          newState.placeName = reversedPlace.name;
+          placeName = reversedPlace.name;
         } catch {
-          newState.placeName = `${pos.coords.latitude.toFixed(2)}, ${pos.coords.longitude.toFixed(2)}`;
+          // use fallback coordinates above
         }
-        await applySkyState(newState);
+        uiElements.placeNameInput.value = placeName;
+        uiElements.elevationInput.value = String(Math.round(pos.coords.altitude || 0));
         uiElements.locationStatus.textContent = '';
       },
       () => {
@@ -268,9 +262,11 @@ async function init() {
     );
   });
 
-  uiElements.skyControls.addEventListener('change', async () => {
+  uiElements.skyControls.addEventListener('submit', async (e) => {
+    e.preventDefault();
     const newState = parseSkyStateFromControls(uiElements, currentSkyState);
     await applySkyState(newState);
+    enableRotation = uiElements.enableRotationCheckbox.checked;
   });
 
   // Apply initial sky state
@@ -307,7 +303,7 @@ function animate() {
   } else {
     controls.update();
     const cameraDistance = camera.position.length();
-    updateAutoRotate(controls, shouldAutoRotate(cameraDistance));
+    updateAutoRotate(controls, enableRotation && shouldAutoRotate(cameraDistance));
   }
 
   const elapsed = animationClock.getElapsedTime();

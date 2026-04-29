@@ -126,6 +126,32 @@ html, body {
   border-color: rgba(233, 217, 169, 0.5);
 }
 
+.sky-form__checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  cursor: pointer;
+}
+
+.sky-form__checkbox input {
+  width: auto;
+  min-height: auto;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  accent-color: rgba(233, 217, 169, 0.6);
+}
+
+.sky-form__checkbox span {
+  margin: 0;
+  color: rgba(236, 241, 245, 0.78);
+  font-size: 14px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
 .sky-form button {
   min-height: 40px;
   border: 1px solid rgba(233, 217, 169, 0.4);

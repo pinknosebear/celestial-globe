@@ -15,6 +15,7 @@ export interface ControlElements {
   dateInput: HTMLInputElement;
   timeInput: HTMLInputElement;
   elevationInput: HTMLInputElement;
+  enableRotationCheckbox: HTMLInputElement;
   skyControls: HTMLFormElement;
   skySummary: HTMLParagraphElement;
 }
@@ -33,6 +34,7 @@ export function getControlElements(): ControlElements {
     dateInput: document.getElementById('sky-date') as HTMLInputElement,
     timeInput: document.getElementById('sky-time') as HTMLInputElement,
     elevationInput: document.getElementById('elevation') as HTMLInputElement,
+    enableRotationCheckbox: document.getElementById('enable-rotation') as HTMLInputElement,
     skyControls: document.getElementById('sky-controls') as HTMLFormElement,
     skySummary: document.getElementById('sky-summary') as HTMLParagraphElement,
   };
