@@ -319,7 +319,7 @@ let currentSkyState: SkyState = { ...DEFAULT_SKY_STATE };
 let introAnim: IntroAnimState | null = null;
 
 function multiply3x3(a: number[][], b: number[][]) {
-  return a.map((row, rowIndex) =>
+  return a.map((row) =>
     b[0].map((_, colIndex) =>
       row[0] * b[0][colIndex] +
       row[1] * b[1][colIndex] +
@@ -931,20 +931,24 @@ function updateHover(clientX: number, clientY: number) {
   }
 }
 
-window.addEventListener('mousemove', (e) => updateHover(e.clientX, e.clientY));
-window.addEventListener('touchmove', (e) => {
-  if (e.touches.length > 0) {
-    updateHover(e.touches[0].clientX, e.touches[0].clientY);
+// Event listener references for cleanup
+const handleMouseMove = (e: Event) => {
+  const me = e as MouseEvent;
+  updateHover(me.clientX, me.clientY);
+};
+const handleTouchMove = (e: Event) => {
+  const te = e as TouchEvent;
+  if (te.touches.length > 0) {
+    updateHover(te.touches[0].clientX, te.touches[0].clientY);
   }
-}, { passive: true });
+};
+const handleMouseDown = () => { introAnim = null; };
+const handleWheel = () => { introAnim = null; };
 
-// Cancel intro animation on user interaction
-renderer.domElement.addEventListener('mousedown', () => {
-  introAnim = null;
-});
-renderer.domElement.addEventListener('wheel', () => {
-  introAnim = null;
-}, { passive: true });
+window.addEventListener('mousemove', handleMouseMove);
+window.addEventListener('touchmove', handleTouchMove, { passive: true } as EventListenerOptions);
+renderer.domElement.addEventListener('mousedown', handleMouseDown);
+renderer.domElement.addEventListener('wheel', handleWheel, { passive: true } as EventListenerOptions);
 
 // --- Main load sequence ---
 
@@ -1037,7 +1041,7 @@ function animate() {
 
     if (progress >= 1) {
       introAnim = null;
-      controls.update(); // sync controls state after animation ends
+      controls.update();
     }
   } else {
     controls.update();
@@ -1086,7 +1090,10 @@ window.addEventListener('resize', onResize);
 function dispose() {
   cancelAnimationFrame(animFrameId);
   window.removeEventListener('resize', onResize);
-  window.removeEventListener('mousemove', onMouseMove);
+  window.removeEventListener('mousemove', handleMouseMove);
+  window.removeEventListener('touchmove', handleTouchMove);
+  renderer.domElement.removeEventListener('mousedown', handleMouseDown);
+  renderer.domElement.removeEventListener('wheel', handleWheel);
   controls.dispose();
   graticuleMaterial.dispose();
   equatorMaterial.dispose();
