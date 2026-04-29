@@ -436,6 +436,7 @@ html, body {
   gap: 12px;
   padding: 8px 0;
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .sky-form__checkbox input {
@@ -463,6 +464,8 @@ html, body {
   color: rgba(236, 241, 245, 0.85);
   font-size: 16px;
   font-weight: 300;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 @media (max-width: 720px) {
