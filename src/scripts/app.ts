@@ -54,13 +54,16 @@ const zodiacStarMaterial = createZodiacStarMaterial();
 
 // --- Graticule ---
 
-skyGroup.add(createGraticule(GRATICULE_STEP, GRATICULE_SEGMENTS));
-skyGroup.add(createEquator());
+const graticule = createGraticule(GRATICULE_STEP, GRATICULE_SEGMENTS);
+const equator = createEquator();
+skyGroup.add(graticule);
+skyGroup.add(equator);
 
 // --- State ---
 
 let starPoints: THREE.Points | null = null;
 let zodiacPoints: THREE.Points | null = null;
+let referencePlanes: THREE.Group | null = null;
 const constellations: ConstellationState[] = [];
 const planets: PlanetState[] = [];
 let hoveredAbbrev: string | null = null;
@@ -297,6 +300,39 @@ async function init() {
     const newState = parseSkyStateFromControls(uiElements, currentSkyState);
     await applySkyState(newState);
     enableRotation = uiElements.enableRotationCheckbox.checked;
+  });
+
+  // Wire visibility toggles — consolidated, reusable pattern
+  const VISIBILITY_TOGGLES = [
+    { id: 'toggle-graticule', object: graticule },
+    { id: 'toggle-equator', object: equator },
+    { id: 'toggle-constellations', getter: () => constellations, isArray: true },
+    { id: 'toggle-zodiac-stars', object: zodiacPoints },
+    { id: 'toggle-reference-planes', getter: () => referencePlanes },
+  ];
+
+  VISIBILITY_TOGGLES.forEach(({ id, object, getter, isArray }) => {
+    const toggle = document.getElementById(id) as HTMLInputElement;
+    if (toggle) {
+      toggle.addEventListener('change', (e) => {
+        const isChecked = (e.target as HTMLInputElement).checked;
+        const target = object || (getter ? getter() : null);
+
+        if (isArray) {
+          // For arrays like constellations, toggle all line visibility
+          (target as any[]).forEach((item: any) => {
+            if (item.lines && Array.isArray(item.lines)) {
+              item.lines.forEach((line: any) => {
+                line.visible = isChecked;
+              });
+            }
+          });
+        } else if (target) {
+          // For single objects, toggle visibility directly
+          target.visible = isChecked;
+        }
+      });
+    }
   });
 
   // Apply initial sky state

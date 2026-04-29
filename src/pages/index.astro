@@ -13,11 +13,23 @@ import '../styles/global.css';
   </head>
   <body>
     <canvas id="globe-canvas"></canvas>
-    <button id="toggle-panel" class="toggle-panel">Change Date & Location</button>
+
+    <!-- Hamburger Menu (top-left) -->
+    <button id="menu-hamburger" class="menu-hamburger" aria-label="Open menu">☰</button>
+    <nav id="menu-dropdown" class="menu-dropdown hidden">
+      <button class="menu-dropdown__item" data-panel="date-location">Date & Location</button>
+      <button class="menu-dropdown__item" data-panel="display">Display Settings</button>
+      <button class="menu-dropdown__item" data-panel="catalog">Catalog</button>
+    </nav>
+
+    <!-- Backdrop (covers canvas when panel open) -->
     <div id="panel-backdrop" class="panel-backdrop"></div>
-    <aside class="sky-panel hidden">
+
+    <!-- Panel: Date & Location -->
+    <aside id="panel-date-location" class="sky-panel hidden">
+      <button class="sky-panel__close" aria-label="Close panel">×</button>
       <div class="sky-panel__header">
-        <h1>Night Sky</h1>
+        <h1>Date & Location</h1>
         <p id="sky-summary">San Francisco, CA · April 26, 2026 · 9:00 PM · UTC-07:00</p>
       </div>
       <form id="sky-controls" class="sky-form">
@@ -57,33 +69,128 @@ import '../styles/global.css';
         <button type="submit">Update Sky</button>
       </form>
     </aside>
+
+    <!-- Panel: Display Settings -->
+    <aside id="panel-display" class="sky-panel hidden">
+      <button class="sky-panel__close" aria-label="Close panel">×</button>
+      <div class="sky-panel__header">
+        <h1>Display Settings</h1>
+      </div>
+      <div class="sky-form">
+        <label class="sky-form__checkbox">
+          <input id="toggle-graticule" type="checkbox" checked />
+          <span>Graticule</span>
+        </label>
+        <label class="sky-form__checkbox">
+          <input id="toggle-equator" type="checkbox" checked />
+          <span>Equator</span>
+        </label>
+        <label class="sky-form__checkbox">
+          <input id="toggle-constellations" type="checkbox" checked />
+          <span>Zodiac Lines</span>
+        </label>
+        <label class="sky-form__checkbox">
+          <input id="toggle-zodiac-stars" type="checkbox" checked />
+          <span>Zodiac Stars</span>
+        </label>
+        <label class="sky-form__checkbox">
+          <input id="toggle-reference-planes" type="checkbox" checked />
+          <span>Reference Planes</span>
+        </label>
+      </div>
+    </aside>
+
+    <!-- Panel: Catalog -->
+    <aside id="panel-catalog" class="sky-panel hidden">
+      <button class="sky-panel__close" aria-label="Close panel">×</button>
+      <div class="sky-panel__header">
+        <h1>Catalog</h1>
+      </div>
+      <div class="sky-form">
+        <label class="sky-form__checkbox">
+          <input type="checkbox" checked disabled />
+          <span>Zodiac Constellations</span>
+        </label>
+        <label class="sky-form__checkbox">
+          <input type="checkbox" checked disabled />
+          <span>Solar System Bodies</span>
+        </label>
+      </div>
+    </aside>
+
     <div id="labels" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;"></div>
+
     <script>
       import '../scripts/app.ts';
 
-      const toggleBtn = document.getElementById('toggle-panel') as HTMLButtonElement;
-      const skyPanel = document.querySelector('.sky-panel') as HTMLElement;
+      // Menu and panel management
+      const hamburger = document.getElementById('menu-hamburger') as HTMLButtonElement;
+      const menuDropdown = document.getElementById('menu-dropdown') as HTMLElement;
       const backdrop = document.getElementById('panel-backdrop') as HTMLElement;
+      const menuItems = document.querySelectorAll('.menu-dropdown__item') as NodeListOf<HTMLButtonElement>;
+
+      let currentPanel: HTMLElement | null = null;
+
+      function closeMenu() {
+        menuDropdown.classList.add('hidden');
+      }
+
+      function openPanel(panelId: string) {
+        // Close current panel if any
+        if (currentPanel) {
+          currentPanel.classList.add('hidden');
+        }
+
+        // Open new panel
+        const panel = document.getElementById(`panel-${panelId}`) as HTMLElement;
+        if (panel) {
+          panel.classList.remove('hidden');
+          currentPanel = panel;
+          backdrop.classList.add('visible');
+        }
+
+        closeMenu();
+      }
 
       function closePanel() {
-        skyPanel.classList.add('hidden');
+        if (currentPanel) {
+          currentPanel.classList.add('hidden');
+          currentPanel = null;
+        }
         backdrop.classList.remove('visible');
       }
 
-      function openPanel() {
-        skyPanel.classList.remove('hidden');
-        backdrop.classList.add('visible');
-      }
-
-      toggleBtn.addEventListener('click', () => {
-        if (skyPanel.classList.contains('hidden')) {
-          openPanel();
-        } else {
-          closePanel();
-        }
+      // Hamburger menu toggle
+      hamburger.addEventListener('click', () => {
+        menuDropdown.classList.toggle('hidden');
       });
 
+      // Menu item click handlers
+      menuItems.forEach(item => {
+        item.addEventListener('click', () => {
+          const panelId = item.getAttribute('data-panel');
+          if (panelId) {
+            openPanel(panelId);
+          }
+        });
+      });
+
+      // Close buttons on panels
+      const closeButtons = document.querySelectorAll('.sky-panel__close') as NodeListOf<HTMLButtonElement>;
+      closeButtons.forEach(btn => {
+        btn.addEventListener('click', closePanel);
+      });
+
+      // Backdrop click to close
       backdrop.addEventListener('click', closePanel);
+
+      // Close menu when clicking outside
+      document.addEventListener('click', (e) => {
+        const target = e.target as HTMLElement;
+        if (!target.closest('#menu-hamburger') && !target.closest('#menu-dropdown')) {
+          closeMenu();
+        }
+      });
     </script>
   </body>
 </html>
