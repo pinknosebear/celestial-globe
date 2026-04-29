@@ -26,11 +26,8 @@ export function updateHover(
 
   raycaster.setFromCamera(mouse, camera);
 
-  // Only raycast against zodiac constellations (non-zodiac are disabled)
-  const zodiacConstellations = constellations.filter(c =>
-    CONSTELLATIONS.zodiacSet.includes(c.abbrev as any)
-  );
-  const hitMeshes = zodiacConstellations.map(c => c.hitMesh);
+  // Raycast against all constellations (both zodiac and non-zodiac)
+  const hitMeshes = constellations.map(c => c.hitMesh);
   const hits = raycaster.intersectObjects(hitMeshes);
   const planetHits = raycaster.intersectObjects(planets.map(p => p.sprite), false);
 
@@ -50,30 +47,25 @@ export function handleConstellationHover(
   constellations: ConstellationState[],
   zodiacPoints: THREE.Points | null
 ): string | null {
-  // Only process zodiac constellations
-  if (newHovered && !CONSTELLATIONS.zodiacSet.includes(newHovered as any)) {
-    return prevHovered;
-  }
-
   if (newHovered !== prevHovered) {
+    // Hide all labels first
+    for (const constellation of constellations) {
+      constellation.label.visible = false;
+      if (constellation.label.element) {
+        constellation.label.element.style.display = 'none';
+      }
+    }
+
     if (!zodiacPoints) return newHovered;
 
+    const isZodiac = newHovered && CONSTELLATIONS.zodiacSet.includes(newHovered as any);
     const sizeAttr = zodiacPoints.geometry.attributes['starSize'] as THREE.BufferAttribute;
     const brightAttr = zodiacPoints.geometry.attributes['brightness'] as THREE.BufferAttribute;
 
-    if (newHovered) {
-      // When hovering a zodiac sign: brighten that sign, show its label
+    if (newHovered && isZodiac) {
+      // Zodiac constellation: brighten stars and show label
       const next = constellations.find(c => c.abbrev === newHovered)!;
 
-      // Hide all labels first
-      for (const constellation of constellations) {
-        constellation.label.visible = false;
-        if (constellation.label.element) {
-          constellation.label.element.style.display = 'none';
-        }
-      }
-
-      // Brighten hovered zodiac constellation and show its label
       for (let i = 0; i < next.starIndices.length; i++) {
         const si = next.starIndices[i];
         sizeAttr.setX(si, next.baseSizes[i] * 2.5);
@@ -86,15 +78,15 @@ export function handleConstellationHover(
       if (next.label.element) {
         next.label.element.style.display = 'block';
       }
-    } else {
-      // When hover ends: restore all to base brightness and hide all labels
-      for (const constellation of constellations) {
-        constellation.label.visible = false;
-        if (constellation.label.element) {
-          constellation.label.element.style.display = 'none';
-        }
+    } else if (newHovered && !isZodiac) {
+      // Non-zodiac constellation: show label only (no brightness/size boost)
+      const next = constellations.find(c => c.abbrev === newHovered)!;
+      next.label.visible = true;
+      if (next.label.element) {
+        next.label.element.style.display = 'block';
       }
-
+    } else {
+      // Hover ended: restore all zodiac brightness to base
       for (const constellation of constellations) {
         for (let i = 0; i < constellation.starIndices.length; i++) {
           const si = constellation.starIndices[i];
