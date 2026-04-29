@@ -62,7 +62,7 @@ export function handleConstellationHover(
     const brightAttr = zodiacPoints.geometry.attributes['brightness'] as THREE.BufferAttribute;
 
     if (newHovered) {
-      // When hovering a zodiac sign: brighten that sign, dim all others
+      // When hovering a zodiac sign: brighten that sign, show its label
       const next = constellations.find(c => c.abbrev === newHovered)!;
 
       // Hide all labels first
@@ -73,22 +73,11 @@ export function handleConstellationHover(
         }
       }
 
-      // Dim all other constellations
-      for (const constellation of constellations) {
-        if (constellation.abbrev !== newHovered) {
-          for (let i = 0; i < constellation.starIndices.length; i++) {
-            const si = constellation.starIndices[i];
-            sizeAttr.setX(si, constellation.baseSizes[i] * 0.4);
-            brightAttr.setX(si, constellation.baseBrightnesses[i] * 0.25);
-          }
-        }
-      }
-
-      // Brighten hovered constellation and show its label
+      // Brighten hovered zodiac constellation and show its label
       for (let i = 0; i < next.starIndices.length; i++) {
         const si = next.starIndices[i];
-        sizeAttr.setX(si, next.baseSizes[i] * 1.8);
-        brightAttr.setX(si, Math.min(1.0, next.baseBrightnesses[i] * 1.3));
+        sizeAttr.setX(si, next.baseSizes[i] * 2.5);
+        brightAttr.setX(si, Math.min(1.0, next.baseBrightnesses[i] * 2.0));
       }
 
       sizeAttr.needsUpdate = true;

@@ -130,10 +130,7 @@ export async function loadConstellations(
         new THREE.BufferGeometry().setFromPoints(pts),
         lineMat
       );
-      // Only render zodiac constellations for now (non-zodiac are disabled for debugging)
-      if (isZodiac) {
-        skyGroup.add(segLine);
-      }
+      skyGroup.add(segLine);
       segLines.push(segLine);
       segMats.push(lineMat);
     }
