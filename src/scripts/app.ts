@@ -201,6 +201,11 @@ async function init() {
   window.addEventListener('mousemove', handleMouseMove);
   window.addEventListener('touchmove', handleTouchMove, { passive: true } as EventListenerOptions);
   renderer.domElement.addEventListener('mousedown', handleMouseDown);
+  renderer.domElement.addEventListener('mouseleave', () => {
+    // Clear hover state when cursor leaves canvas
+    hoveredAbbrev = handleConstellationHover(null, hoveredAbbrev, constellations, zodiacPoints);
+    hoveredPlanetName = handlePlanetHover(null, hoveredPlanetName, planets);
+  });
   renderer.domElement.addEventListener('wheel', handleWheel, { passive: true } as EventListenerOptions);
   window.addEventListener('resize', () => onWindowResize(setup));
 
