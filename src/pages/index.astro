@@ -178,7 +178,11 @@ import '../styles/global.css';
       // Close buttons on panels
       const closeButtons = document.querySelectorAll('.sky-panel__close') as NodeListOf<HTMLButtonElement>;
       closeButtons.forEach(btn => {
-        btn.addEventListener('click', closePanel);
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          closePanel();
+        });
       });
 
       // Backdrop click to close

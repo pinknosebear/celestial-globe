@@ -379,8 +379,8 @@ html, body {
 
 .sky-panel__close {
   position: absolute;
-  top: 18px;
-  right: 18px;
+  top: 12px;
+  right: 12px;
   width: 32px;
   height: 32px;
   border: none;
@@ -393,10 +393,12 @@ html, body {
   justify-content: center;
   transition: color 0.2s;
   padding: 0;
+  z-index: 10;
 }
 
 .sky-panel__close:hover {
   color: rgba(244, 239, 228, 0.95);
+  background: rgba(233, 217, 169, 0.1);
 }
 
 /* Form Refinements */
