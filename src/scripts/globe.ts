@@ -7,60 +7,26 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { THEME } from './config/theme';
+import { SPHERE, CAMERA, CONTROLS, ANIMATION, STARS, PLANETS, CONSTELLATIONS } from './config/constants';
+import { DEFAULT_OBSERVER } from './config/defaults';
+import type { SkyState, ResolvedPlace, IntroAnimState, StarData, ZodiacEntry, ZodiacData, ConstellationState, PlanetState } from './types';
 
-const SPHERE_RADIUS = 100;
-const GRATICULE_STEP = 30;
-const GRATICULE_SEGMENTS = 128;
-const GLOBE_VIEW_THRESHOLD = SPHERE_RADIUS;
+const SPHERE_RADIUS = SPHERE.radius;
+const GRATICULE_STEP = SPHERE.graticulStep;
+const GRATICULE_SEGMENTS = SPHERE.graticuleSegments;
+const GLOBE_VIEW_THRESHOLD = CONTROLS.globeViewThreshold;
 
-interface IntroAnimState {
-  startDir: THREE.Vector3;
-  startDist: number;
-  endDist: number;
-  startTime: number;
-  duration: number;
-}
-
-const DEFAULT_SKY_STATE = {
-  placeName: 'San Francisco, CA',
-  latitude: 37.7749,
-  longitude: -122.4194,
-  elevation: 16,
-  date: '2026-04-26',
-  time: '21:00',
-  timeZone: 'America/Los_Angeles',
-} as const;
+const DEFAULT_SKY_STATE = DEFAULT_OBSERVER;
 const HORIZONTAL_TO_WORLD_ROTATION = [
   [0, -1, 0],
   [1, 0, 0],
   [0, 0, -1],
 ];
-const PLANET_BODIES = [
-  { body: Astronomy.Body.Mercury, name: 'Mercury', glyph: '☿', color: '#c9d4e0', size: 5.2 },
-  { body: Astronomy.Body.Venus, name: 'Venus', glyph: '♀', color: '#f5e3ba', size: 6.0 },
-  { body: Astronomy.Body.Mars, name: 'Mars', glyph: '♂', color: '#d97b5f', size: 5.4 },
-  { body: Astronomy.Body.Jupiter, name: 'Jupiter', glyph: '♃', color: '#efd5b0', size: 6.8 },
-  { body: Astronomy.Body.Saturn, name: 'Saturn', glyph: '♄', color: '#e4cb88', size: 6.4 },
-  { body: Astronomy.Body.Uranus, name: 'Uranus', glyph: '♅', color: '#9fdce4', size: 5.2 },
-  { body: Astronomy.Body.Neptune, name: 'Neptune', glyph: '♆', color: '#7293db', size: 5.2 },
-] as const;
-
-interface SkyState {
-  placeName: string;
-  latitude: number;
-  longitude: number;
-  elevation: number;
-  date: string;
-  time: string;
-  timeZone: string;
-}
-
-interface ResolvedPlace {
-  name: string;
-  latitude: number;
-  longitude: number;
-  timeZone: string;
-}
+const PLANET_BODIES = PLANETS.map((p) => ({
+  body: (Astronomy.Body as any)[p.name],
+  ...p,
+}));
 
 const canvas = document.getElementById('globe-canvas') as HTMLCanvasElement;
 const skySummary = document.getElementById('sky-summary') as HTMLParagraphElement;
@@ -91,7 +57,7 @@ labelRenderer.domElement.style.pointerEvents = 'none';
 document.getElementById('labels')!.appendChild(labelRenderer.domElement);
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color('#081f2b');
+scene.background = new THREE.Color(THEME.colors.background);
 scene.add(new THREE.AmbientLight('#ffffff'));
 
 const skyGroup = new THREE.Group();
@@ -102,19 +68,19 @@ const planetGroup = new THREE.Group();
 skyGroup.add(planetGroup);
 
 const camera = new THREE.PerspectiveCamera(
-  75,
+  CAMERA.fov,
   window.innerWidth / window.innerHeight,
   1,
   1000
 );
-camera.position.set(0, 0, SPHERE_RADIUS);
+camera.position.set(0, 0, CAMERA.initialDistance);
 
 composer.addPass(new RenderPass(scene, camera));
 const bloomPass = new UnrealBloomPass(
   new THREE.Vector2(window.innerWidth, window.innerHeight),
-  0.2,  // strength
-  0.6,  // radius
-  0.1   // threshold — only pixels brighter than ~10% bloom
+  THEME.bloom.strength,
+  THEME.bloom.radius,
+  THEME.bloom.threshold
 );
 composer.addPass(bloomPass);
 composer.addPass(new OutputPass());
@@ -122,19 +88,19 @@ composer.addPass(new OutputPass());
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enablePan = false;
 controls.enableZoom = true;
-controls.minDistance = 8;
-controls.maxDistance = 200;
-controls.rotateSpeed = -1;
-controls.enableDamping = true;
-controls.dampingFactor = 0.05;
-controls.autoRotateSpeed = -1.6;
+controls.minDistance = CAMERA.minDistance;
+controls.maxDistance = CAMERA.maxDistance;
+controls.rotateSpeed = CONTROLS.rotateSpeed;
+controls.enableDamping = CONTROLS.enableDamping;
+controls.dampingFactor = CONTROLS.dampingFactor;
+controls.autoRotateSpeed = CONTROLS.autoRotateSpeed;
 
 // --- Graticule ---
 
 const graticuleMaterial = new THREE.LineBasicMaterial({
-  color: new THREE.Color('#1a3a4a'),
+  color: new THREE.Color(THEME.colors.graticule),
   transparent: true,
-  opacity: 0.6,
+  opacity: THEME.opacity.graticule,
 });
 
 function makeLatitudeCircle(latDeg: number): THREE.LineLoop {
@@ -182,9 +148,9 @@ skyGroup.add(graticuleGroup);
 
 // --- Equator highlight ---
 const equatorMaterial = new THREE.LineBasicMaterial({
-  color: new THREE.Color('#2a5a6a'),
+  color: new THREE.Color(THEME.colors.equator),
   transparent: true,
-  opacity: 0.9,
+  opacity: THEME.opacity.equator,
 });
 const equatorPts = Array.from({ length: GRATICULE_SEGMENTS }, (_, i) => {
   const lon = (i / GRATICULE_SEGMENTS) * Math.PI * 2;
@@ -643,22 +609,20 @@ function setupControls() {
 }
 
 function getStarVisuals(mag: number, layer: 'regular' | 'zodiac') {
-  // Map brighter stars into a much wider visual range so the globe reads as
-  // structure instead of a mostly uniform point cloud.
   const prominence = THREE.MathUtils.clamp((8.5 - mag) / 10.5, 0, 1);
-  const sizeCurve = Math.pow(prominence, 2.35);
-  const brightnessCurve = Math.pow(prominence, 1.7);
+  const sizeCurve = Math.pow(prominence, STARS.sizeCurve);
+  const brightnessCurve = Math.pow(prominence, STARS.brightnessCurve);
 
   if (layer === 'zodiac') {
     return {
-      size: 2.45 + sizeCurve * 22.0,
-      brightness: Math.min(1.0, 0.32 + brightnessCurve * 0.95),
+      size: STARS.zodiacLayer.baseSizeMin + sizeCurve * (STARS.zodiacLayer.baseSizeMax - STARS.zodiacLayer.baseSizeMin),
+      brightness: Math.min(1.0, STARS.zodiacLayer.baseBrightnessMin + brightnessCurve * (STARS.zodiacLayer.baseBrightnessMax - STARS.zodiacLayer.baseBrightnessMin)),
     };
   }
 
   return {
-    size: 1.45 + sizeCurve * 24.5,
-    brightness: Math.min(1.0, 0.12 + brightnessCurve * 0.98),
+    size: STARS.regularLayer.baseSizeMin + sizeCurve * (STARS.regularLayer.baseSizeMax - STARS.regularLayer.baseSizeMin),
+    brightness: Math.min(1.0, STARS.regularLayer.baseBrightnessMin + brightnessCurve * (STARS.regularLayer.baseBrightnessMax - STARS.regularLayer.baseBrightnessMin)),
   };
 }
 
@@ -685,7 +649,7 @@ async function loadStars(): Promise<{ positions: Float32Array; mags: Float32Arra
   let vi = 0;
   for (let i = 0; i < total; i++) {
     const mag = data.mag[i];
-    if (mag < -5) continue;
+    if (mag < STARS.minMagnitude) continue;
     const visuals = getStarVisuals(mag, 'regular');
 
     positions[vi * 3]     = data.x[i] * SPHERE_RADIUS;
@@ -710,7 +674,7 @@ async function loadConstellations(
 
   // Collect zodiac member star indices by matching GeoJSON vertices to nearest catalog star
   const zodiacMemberMap = new Map<string, Set<number>>();
-  const MATCH_TOLERANCE_SQ = 0.35 * 0.35; // ~0.2° in world units
+  const MATCH_TOLERANCE_SQ = CONSTELLATIONS.starMatchTolerance;
 
   for (const [abbrev, entry] of Object.entries(zodiacData)) {
     const memberSet = new Set<number>();
@@ -800,13 +764,12 @@ async function loadConstellations(
       const pts = segment.map((coord: number[]) =>
         raDegDecDegToXYZ(coord[0], coord[1], SPHERE_RADIUS)
       );
-      const isZodiac = ['Ari', 'Tau', 'Gem', 'Cnc', 'Leo', 'Vir', 'Lib', 'Sco', 'Sgr', 'Cap', 'Aqr', 'Psc'].includes(abbrev);
-      const lineColor = isZodiac ? 0x8899aa : 0x445566;
-      const lineOpacity = 0.7;
+      const isZodiac = CONSTELLATIONS.zodiacSet.includes(abbrev as any);
+      const lineColor = isZodiac ? THEME.colors.constellationLinesZodiac : THEME.colors.constellationLines;
       const lineMat = new THREE.LineBasicMaterial({
         color: lineColor,
         transparent: true,
-        opacity: lineOpacity,
+        opacity: THEME.opacity.constellationLines,
         depthWrite: false,
       });
       const segLine = new THREE.Line(
@@ -1014,12 +977,12 @@ async function init() {
       introAnim = {
         startDir: camera.position.clone().normalize(),
         startDist: camera.position.length(),
-        endDist: 200,
+        endDist: ANIMATION.introZoomEndDist,
         startTime: performance.now(),
-        duration: 5500, // slower zoom-out
+        duration: ANIMATION.introZoomDuration,
       };
     }
-  }, 1200); // longer delay before animation starts
+  }, ANIMATION.introZoomDelay);
 }
 
 init();
