@@ -111,7 +111,15 @@ export function handlePlanetHover(
 ): string | null {
   if (newHoveredPlanet !== prevHoveredPlanet) {
     for (const planet of planets) {
-      planet.label.visible = planet.name === newHoveredPlanet;
+      if (planet.name === newHoveredPlanet) {
+        planet.label.visible = true;
+        if ((planet.label as any).infoSpan && planet.signName !== undefined && planet.degreeInSign !== undefined) {
+          const retroSign = planet.retrograde ? '℞ ' : '';
+          (planet.label as any).infoSpan.textContent = `${retroSign}${planet.degreeInSign.toFixed(1)}° ${planet.signName}`;
+        }
+      } else {
+        planet.label.visible = false;
+      }
     }
   }
 

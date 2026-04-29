@@ -206,6 +206,10 @@ html, body {
 }
 
 .planet-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
   color: #f8edd0;
   font-size: 12px;
   font-weight: 300;
@@ -214,6 +218,17 @@ html, body {
   text-shadow: 0 0 10px rgba(255, 238, 189, 0.45);
   transform: translate(-50%, -130%);
   white-space: nowrap;
+  pointer-events: none;
+}
+
+.planet-label .planet-name {
+  font-size: 16px;
+}
+
+.planet-label .planet-info {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: rgba(248, 237, 208, 0.85);
 }
 
 .toggle-panel {
