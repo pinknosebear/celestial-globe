@@ -3,6 +3,7 @@
  */
 
 import * as THREE from 'three';
+import { CONSTELLATIONS } from '../config/constants';
 import type { ConstellationState, PlanetState } from '../types';
 
 /**
@@ -24,7 +25,12 @@ export function updateHover(
   mouse.y = -(clientY / window.innerHeight) * 2 + 1;
 
   raycaster.setFromCamera(mouse, camera);
-  const hitMeshes = constellations.map(c => c.hitMesh);
+
+  // Only raycast against zodiac constellations (non-zodiac are disabled)
+  const zodiacConstellations = constellations.filter(c =>
+    CONSTELLATIONS.zodiacSet.includes(c.abbrev as any)
+  );
+  const hitMeshes = zodiacConstellations.map(c => c.hitMesh);
   const hits = raycaster.intersectObjects(hitMeshes);
   const planetHits = raycaster.intersectObjects(planets.map(p => p.sprite), false);
 
@@ -44,6 +50,11 @@ export function handleConstellationHover(
   constellations: ConstellationState[],
   zodiacPoints: THREE.Points | null
 ): string | null {
+  // Only process zodiac constellations
+  if (newHovered && !CONSTELLATIONS.zodiacSet.includes(newHovered as any)) {
+    return prevHovered;
+  }
+
   if (newHovered !== prevHovered) {
     if (!zodiacPoints) return newHovered;
 
