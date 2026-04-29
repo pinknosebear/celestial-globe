@@ -57,6 +57,10 @@ export interface PlanetState {
   spinSpeed: number;
   sprite: any; // THREE.Sprite
   label: any; // CSS2DObject
+  eclipticLongitude?: number; // 0–360° tropical
+  retrograde?: boolean;
+  signName?: string;
+  degreeInSign?: number;
 }
 
 export interface IntroAnimState {

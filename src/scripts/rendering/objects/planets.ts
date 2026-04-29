@@ -6,7 +6,12 @@ import * as Astronomy from 'astronomy-engine';
 import * as THREE from 'three';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { PLANETS, SPHERE } from '../../config/constants';
-import { raDegDecDegToXYZ } from '../../astronomy/calculations';
+import {
+  raDegDecDegToXYZ,
+  getEclipticLongitude,
+  isRetrograde,
+  getZodiacSignInfo,
+} from '../../astronomy/calculations';
 import { createPlanetSpriteMaterial } from '../materials';
 import type { SkyState, PlanetState } from '../../types';
 
@@ -62,10 +67,19 @@ export function updatePlanetPositions(
     const mag = Astronomy.Illumination(planet.body, observationDate).mag;
     const scale = THREE.MathUtils.clamp(planet.baseSize + (2.5 - mag) * 0.35, 5.5, 15);
 
+    // Compute astrological ecliptic data
+    const eclipticLon = getEclipticLongitude(planet.body, observationDate);
+    const retrograde = isRetrograde(planet.body, observationDate);
+    const zodiac = getZodiacSignInfo(eclipticLon);
+
     planet.sprite.position.copy(position);
     planet.currentScale = scale;
     planet.sprite.scale.setScalar(scale);
     planet.sprite.visible = true;
+    planet.eclipticLongitude = eclipticLon;
+    planet.retrograde = retrograde;
+    planet.signName = zodiac.signName;
+    planet.degreeInSign = zodiac.degreeInSign;
   }
 }
 

@@ -3,6 +3,7 @@
  */
 
 import * as THREE from 'three';
+import * as Astronomy from 'astronomy-engine';
 
 /**
  * Multiply two 3x3 matrices.
@@ -101,4 +102,104 @@ export function makeObservationDate(date: string, time: string, timeZone: string
   }
 
   return resolved;
+}
+
+/**
+ * Compute Local Sidereal Time (LST) from UTC date and observer longitude.
+ * LST is the hour angle of the vernal equinox at the observer's meridian.
+ * @param utcDate - UTC date/time
+ * @param longitudeDeg - Observer longitude in degrees (positive = East, negative = West)
+ * @returns LST in hours (0–24)
+ */
+export function computeLST(utcDate: Date, longitudeDeg: number): number {
+  const gst = Astronomy.SiderealTime(utcDate); // Greenwich Sidereal Time in hours
+  // LST = GST + longitude (in hours)
+  return ((gst + longitudeDeg / 15) % 24 + 24) % 24;
+}
+
+/**
+ * Build a 3×3 rotation matrix that transforms equatorial (RA/Dec) to horizontal (Alt/Az) coordinates.
+ * The matrix accounts for observer latitude and Local Sidereal Time (LST).
+ * @param latDeg - Observer latitude in degrees (positive = North, negative = South)
+ * @param lstHours - Local Sidereal Time in hours
+ * @returns 3×3 rotation matrix as number[][]
+ */
+export function buildSkyRotationMatrix(latDeg: number, lstHours: number): number[][] {
+  // Convert to radians
+  const lst = (lstHours * 15 * Math.PI) / 180; // 15° per hour
+  const lat = (latDeg * Math.PI) / 180;
+
+  const cosLat = Math.cos(lat);
+  const sinLat = Math.sin(lat);
+  const cosLST = Math.cos(lst);
+  const sinLST = Math.sin(lst);
+
+  // Equatorial → Horizontal transformation matrix
+  // First rotate by LST around polar axis, then tilt by latitude
+  return [
+    [-sinLST, cosLST, 0],
+    [-sinLat * cosLST, -sinLat * sinLST, cosLat],
+    [cosLat * cosLST, cosLat * sinLST, sinLat],
+  ];
+}
+
+/**
+ * Get tropical ecliptic longitude (0–360°) for a celestial body.
+ * Used for astrological charts, zodiac sign determination, and 2D chart rendering.
+ * @param body - Astronomy.Body enum value
+ * @param date - UTC date
+ * @returns Ecliptic longitude in degrees (0–360)
+ */
+export function getEclipticLongitude(body: any, date: Date): number {
+  if (body === Astronomy.Body.Sun) {
+    return ((Astronomy.SunPosition(date).elon % 360) + 360) % 360;
+  }
+  const eclVec = Astronomy.Ecliptic(Astronomy.GeoVector(body, date, false));
+  return ((eclVec.elon % 360) + 360) % 360;
+}
+
+/**
+ * Determine if a body is retrograde by comparing ecliptic longitudes over a time step.
+ * @param body - Astronomy.Body enum value
+ * @param date - UTC date (center of observation window)
+ * @returns true if body is moving backwards (retrograde), false if direct
+ */
+export function isRetrograde(body: any, date: Date): boolean {
+  const STEP_MS = 0.5 * 86400000; // 0.5 days
+  const lon1 = getEclipticLongitude(body, new Date(date.getTime() - STEP_MS));
+  const lon2 = getEclipticLongitude(body, new Date(date.getTime() + STEP_MS));
+  let delta = lon2 - lon1;
+  if (delta > 180) delta -= 360;
+  if (delta < -180) delta += 360;
+  return delta < 0;
+}
+
+/**
+ * Convert ecliptic longitude to zodiac sign name and degree within sign.
+ * @param eclipticLon - Ecliptic longitude in degrees (0–360)
+ * @returns { signName: string, degreeInSign: number }
+ */
+export function getZodiacSignInfo(eclipticLon: number): {
+  signName: string;
+  degreeInSign: number;
+} {
+  const signNames = [
+    'Aries',
+    'Taurus',
+    'Gemini',
+    'Cancer',
+    'Leo',
+    'Virgo',
+    'Libra',
+    'Scorpio',
+    'Sagittarius',
+    'Capricorn',
+    'Aquarius',
+    'Pisces',
+  ];
+  const signIndex = Math.floor(eclipticLon / 30) % 12;
+  return {
+    signName: signNames[signIndex],
+    degreeInSign: eclipticLon % 30,
+  };
 }

@@ -49,6 +49,8 @@ export const STARS = {
 } as const;
 
 export const PLANETS = [
+  { name: 'Sun', glyph: '☉', color: '#ffe08a', size: 7.5 },
+  { name: 'Moon', glyph: '☽', color: '#d4d4d4', size: 6.5 },
   { name: 'Mercury', glyph: '☿', color: '#c9d4e0', size: 5.2 },
   { name: 'Venus', glyph: '♀', color: '#f5e3ba', size: 6.0 },
   { name: 'Mars', glyph: '♂', color: '#d97b5f', size: 5.4 },

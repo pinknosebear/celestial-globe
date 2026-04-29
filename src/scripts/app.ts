@@ -22,6 +22,7 @@ import { getControlElements, parseSkyStateFromControls, handlePlaceSearch } from
 import { reverseGeocode } from './astronomy/geolocation';
 import { startIntroZoom, updateIntroZoom } from './animation/intro-zoom';
 import { shouldAutoRotate, updateAutoRotate } from './animation/auto-rotation';
+import { computeLST, buildSkyRotationMatrix, applyRotationMatrixToGroup, multiply3x3 } from './astronomy/calculations';
 
 import { THEME } from './config/theme';
 import { SPHERE, CAMERA, CONTROLS, ANIMATION, STARS, PLANETS, CONSTELLATIONS } from './config/constants';
@@ -35,11 +36,6 @@ const GRATICULE_SEGMENTS = SPHERE.graticuleSegments;
 const GLOBE_VIEW_THRESHOLD = CONTROLS.globeViewThreshold;
 
 const DEFAULT_SKY_STATE = DEFAULT_OBSERVER;
-const HORIZONTAL_TO_WORLD_ROTATION = [
-  [0, -1, 0],
-  [1, 0, 0],
-  [0, 0, -1],
-];
 
 const canvas = document.getElementById('globe-canvas') as HTMLCanvasElement;
 const setup = initializeScene(canvas);
@@ -73,28 +69,7 @@ let currentSkyState: SkyState = { ...DEFAULT_SKY_STATE };
 let introAnim: IntroAnimState | null = null;
 let enableRotation = true;
 
-// --- Utility Functions ---
-
-function multiply3x3(a: number[][], b: number[][]) {
-  return a.map((row) =>
-    b[0].map((_, colIndex) =>
-      row[0] * b[0][colIndex] +
-      row[1] * b[1][colIndex] +
-      row[2] * b[2][colIndex]
-    )
-  );
-}
-
-function applyRotationMatrixToGroup(group: THREE.Group, rotation: number[][]) {
-  const matrix = new THREE.Matrix4().set(
-    rotation[0][0], rotation[0][1], rotation[0][2], 0,
-    rotation[1][0], rotation[1][1], rotation[1][2], 0,
-    rotation[2][0], rotation[2][1], rotation[2][2], 0,
-    0, 0, 0, 1
-  );
-  group.matrix.copy(matrix);
-  group.matrixWorldNeedsUpdate = true;
-}
+// --- Utility Functions (imported from calculations.ts) ---
 
 function parseGmtOffset(text: string) {
   const normalized = text.replace('UTC', 'GMT');
@@ -152,16 +127,11 @@ async function applySkyState(state: SkyState) {
 
   updateSummary(state);
   updatePlanetPositions(planets, state, observationDate, observer);
-  const az = Math.atan2(1, 0);
-  const alt = Math.PI / 4;
-  const horiz = [
-    [Math.cos(alt) * Math.cos(az), -Math.sin(alt), Math.cos(alt) * Math.sin(az)],
-    [-Math.sin(az), 0, Math.cos(az)],
-    [Math.sin(alt) * Math.cos(az), Math.cos(alt), Math.sin(alt) * Math.sin(az)],
-  ];
 
-  const horizontalToWorld = multiply3x3(HORIZONTAL_TO_WORLD_ROTATION, horiz);
-  applyRotationMatrixToGroup(skyGroup, horizontalToWorld);
+  // Compute LST-based sky rotation for correct horizon alignment
+  const lst = computeLST(observationDate, state.longitude);
+  const rotationMatrix = buildSkyRotationMatrix(state.latitude, lst);
+  applyRotationMatrixToGroup(skyGroup, rotationMatrix);
 }
 
 // --- Event Handlers ---
