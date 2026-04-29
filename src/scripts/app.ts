@@ -282,14 +282,19 @@ async function init() {
       introAnim = startIntroZoom(camera);
     }
   }, ANIMATION.introZoomDelay);
+
+  isInitialized = true;
+  animate();
 }
 
 // --- Animation Loop ---
 
 let animFrameId: number;
 const animationClock = new THREE.Clock();
+let isInitialized = false;
 
 function animate() {
+  if (!isInitialized) return;
   animFrameId = requestAnimationFrame(animate);
 
   // Handle intro zoom-out animation
@@ -321,8 +326,6 @@ function animate() {
   composer.render();
   labelRenderer.render(scene, camera);
 }
-
-animate();
 
 // --- Cleanup ---
 
