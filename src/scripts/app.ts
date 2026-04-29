@@ -138,11 +138,21 @@ async function applySkyState(state: SkyState) {
 
 const handleMouseMove = (e: Event) => {
   const me = e as MouseEvent;
-  updateHover(me.clientX, me.clientY, camera, constellations, planets, (abbrev) => {
-    hoveredAbbrev = handleConstellationHover(abbrev, hoveredAbbrev, constellations, zodiacPoints);
-  }, (name) => {
-    hoveredPlanetName = handlePlanetHover(name, hoveredPlanetName, planets);
-  });
+  const rect = renderer.domElement.getBoundingClientRect();
+  const isOverCanvas = me.clientX >= rect.left && me.clientX <= rect.right &&
+                       me.clientY >= rect.top && me.clientY <= rect.bottom;
+
+  if (isOverCanvas) {
+    updateHover(me.clientX, me.clientY, camera, constellations, planets, (abbrev) => {
+      hoveredAbbrev = handleConstellationHover(abbrev, hoveredAbbrev, constellations, zodiacPoints);
+    }, (name) => {
+      hoveredPlanetName = handlePlanetHover(name, hoveredPlanetName, planets);
+    });
+  } else {
+    // Clear hover when cursor is over UI or outside canvas
+    hoveredAbbrev = handleConstellationHover(null, hoveredAbbrev, constellations, zodiacPoints);
+    hoveredPlanetName = handlePlanetHover(null, hoveredPlanetName, planets);
+  }
 };
 
 const handleTouchMove = (e: Event) => {
@@ -201,11 +211,6 @@ async function init() {
   window.addEventListener('mousemove', handleMouseMove);
   window.addEventListener('touchmove', handleTouchMove, { passive: true } as EventListenerOptions);
   renderer.domElement.addEventListener('mousedown', handleMouseDown);
-  renderer.domElement.addEventListener('mouseleave', () => {
-    // Clear hover state when cursor leaves canvas
-    hoveredAbbrev = handleConstellationHover(null, hoveredAbbrev, constellations, zodiacPoints);
-    hoveredPlanetName = handlePlanetHover(null, hoveredPlanetName, planets);
-  });
   renderer.domElement.addEventListener('wheel', handleWheel, { passive: true } as EventListenerOptions);
   window.addEventListener('resize', () => onWindowResize(setup));
 
