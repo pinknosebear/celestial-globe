@@ -146,6 +146,31 @@ const handleMouseMove = (e: Event) => {
     updateHover(me.clientX, me.clientY, camera, constellations, planets, (abbrev) => {
       hoveredAbbrev = handleConstellationHover(abbrev, hoveredAbbrev, constellations, zodiacPoints);
     }, (name) => {
+      // When a planet is hovered, find and highlight its containing constellation
+      let constellationToHighlight: string | null = null;
+      if (name) {
+        const hoveredPlanet = planets.find(p => p.name === name);
+        if (hoveredPlanet) {
+          const planetPos = hoveredPlanet.sprite.position;
+          let closestConstellation: ConstellationState | null = null;
+          let closestDist = Infinity;
+
+          for (const constellation of constellations) {
+            const hitMeshPos = constellation.hitMesh.position;
+            const dist = planetPos.distanceTo(hitMeshPos);
+            if (dist < closestDist) {
+              closestDist = dist;
+              closestConstellation = constellation;
+            }
+          }
+
+          if (closestConstellation) {
+            constellationToHighlight = closestConstellation.abbrev;
+          }
+        }
+      }
+
+      hoveredAbbrev = handleConstellationHover(constellationToHighlight, hoveredAbbrev, constellations, zodiacPoints);
       hoveredPlanetName = handlePlanetHover(name, hoveredPlanetName, planets);
     });
   } else {
@@ -161,6 +186,31 @@ const handleTouchMove = (e: Event) => {
     updateHover(te.touches[0].clientX, te.touches[0].clientY, camera, constellations, planets, (abbrev) => {
       hoveredAbbrev = handleConstellationHover(abbrev, hoveredAbbrev, constellations, zodiacPoints);
     }, (name) => {
+      // When a planet is hovered, find and highlight its containing constellation
+      let constellationToHighlight: string | null = null;
+      if (name) {
+        const hoveredPlanet = planets.find(p => p.name === name);
+        if (hoveredPlanet) {
+          const planetPos = hoveredPlanet.sprite.position;
+          let closestConstellation: ConstellationState | null = null;
+          let closestDist = Infinity;
+
+          for (const constellation of constellations) {
+            const hitMeshPos = constellation.hitMesh.position;
+            const dist = planetPos.distanceTo(hitMeshPos);
+            if (dist < closestDist) {
+              closestDist = dist;
+              closestConstellation = constellation;
+            }
+          }
+
+          if (closestConstellation) {
+            constellationToHighlight = closestConstellation.abbrev;
+          }
+        }
+      }
+
+      hoveredAbbrev = handleConstellationHover(constellationToHighlight, hoveredAbbrev, constellations, zodiacPoints);
       hoveredPlanetName = handlePlanetHover(name, hoveredPlanetName, planets);
     });
   }
