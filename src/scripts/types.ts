@@ -2,6 +2,9 @@
  * TypeScript type definitions — shared across the app.
  */
 
+import type * as THREE from 'three';
+import type { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
 export interface SkyState {
   placeName: string;
   latitude: number;
@@ -148,13 +151,17 @@ export type ZodiacData = Record<string, ZodiacEntry>;
 export interface ConstellationState {
   abbrev: string;
   name: string;
+  isZodiac: boolean;
   starIndices: number[];
   baseSizes: Float32Array;
   baseBrightnesses: Float32Array;
-  lines: any[]; // THREE.Line[]
-  mats: any[]; // THREE.LineBasicMaterial[]
-  label: any; // CSS2DObject
-  hitMesh: any; // THREE.Mesh
+  lines: THREE.Line[];
+  mats: THREE.LineBasicMaterial[];
+  label: CSS2DObject;
+  labelAnchor: THREE.Object3D;
+  hitMesh: THREE.Mesh;
+  baseLineVisible: boolean;
+  hoverLineVisible: boolean;
 }
 
 export interface PlanetState {
@@ -165,8 +172,8 @@ export interface PlanetState {
   pulsePhase: number;
   pulseSpeed: number;
   spinSpeed: number;
-  sprite: any; // THREE.Sprite
-  label: any; // CSS2DObject
+  sprite: THREE.Sprite;
+  label: CSS2DObject;
 }
 
 export interface IntroAnimState {

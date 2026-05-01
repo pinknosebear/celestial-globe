@@ -7,6 +7,7 @@ import '../styles/global.css';
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Celestial Globe</title>
+    <link rel="icon" href="data:," />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;1,300&display=swap" rel="stylesheet" />
@@ -19,7 +20,6 @@ import '../styles/global.css';
     <nav id="menu-dropdown" class="menu-dropdown hidden">
       <button class="menu-dropdown__item" data-panel="date-location">Date & Location</button>
       <button class="menu-dropdown__item" data-panel="display">Display Settings</button>
-      <button class="menu-dropdown__item" data-panel="catalog">Catalog</button>
     </nav>
 
     <!-- Backdrop (covers canvas when panel open) -->
@@ -77,6 +77,13 @@ import '../styles/global.css';
         <h1>Display Settings</h1>
       </div>
       <div class="sky-form">
+        <div class="sky-form__group">
+          <span>View</span>
+          <div class="segmented-control" role="group" aria-label="View mode">
+            <button id="view-orb" class="segmented-control__button active" type="button" aria-pressed="true">Orb</button>
+            <button id="view-natal2d" class="segmented-control__button" type="button" aria-pressed="false">2D Natal</button>
+          </div>
+        </div>
         <label class="sky-form__checkbox">
           <input id="toggle-graticule" type="checkbox" checked />
           <span>Graticule</span>
@@ -86,34 +93,20 @@ import '../styles/global.css';
           <span>Equator</span>
         </label>
         <label class="sky-form__checkbox">
-          <input id="toggle-constellations" type="checkbox" checked />
+          <input id="toggle-zodiac-lines" type="checkbox" checked />
           <span>Zodiac Lines</span>
         </label>
         <label class="sky-form__checkbox">
-          <input id="toggle-zodiac-stars" type="checkbox" checked />
-          <span>Zodiac Stars</span>
+          <input id="toggle-other-constellation-lines" type="checkbox" />
+          <span>Other Constellation Lines</span>
         </label>
         <label class="sky-form__checkbox">
-          <input id="toggle-reference-planes" type="checkbox" checked />
-          <span>Reference Planes</span>
-        </label>
-      </div>
-    </aside>
-
-    <!-- Panel: Catalog -->
-    <aside id="panel-catalog" class="sky-panel hidden">
-      <button class="sky-panel__close" aria-label="Close panel">×</button>
-      <div class="sky-panel__header">
-        <h1>Catalog</h1>
-      </div>
-      <div class="sky-form">
-        <label class="sky-form__checkbox">
-          <input type="checkbox" checked disabled />
-          <span>Zodiac Constellations</span>
+          <input id="toggle-constellation-stars" type="checkbox" checked />
+          <span>Constellation Stars</span>
         </label>
         <label class="sky-form__checkbox">
-          <input type="checkbox" checked disabled />
-          <span>Solar System Bodies</span>
+          <input id="toggle-planets" type="checkbox" checked />
+          <span>Planets</span>
         </label>
       </div>
     </aside>

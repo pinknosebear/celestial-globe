@@ -16,6 +16,14 @@ export interface ControlElements {
   timeInput: HTMLInputElement;
   elevationInput: HTMLInputElement;
   enableRotationCheckbox: HTMLInputElement;
+  viewOrbButton: HTMLButtonElement;
+  viewNatal2dButton: HTMLButtonElement;
+  toggleGraticuleCheckbox: HTMLInputElement;
+  toggleEquatorCheckbox: HTMLInputElement;
+  toggleZodiacLinesCheckbox: HTMLInputElement;
+  toggleOtherConstellationLinesCheckbox: HTMLInputElement;
+  toggleConstellationStarsCheckbox: HTMLInputElement;
+  togglePlanetsCheckbox: HTMLInputElement;
   skyControls: HTMLFormElement;
   skySummary: HTMLParagraphElement;
 }
@@ -35,6 +43,14 @@ export function getControlElements(): ControlElements {
     timeInput: document.getElementById('sky-time') as HTMLInputElement,
     elevationInput: document.getElementById('elevation') as HTMLInputElement,
     enableRotationCheckbox: document.getElementById('enable-rotation') as HTMLInputElement,
+    viewOrbButton: document.getElementById('view-orb') as HTMLButtonElement,
+    viewNatal2dButton: document.getElementById('view-natal2d') as HTMLButtonElement,
+    toggleGraticuleCheckbox: document.getElementById('toggle-graticule') as HTMLInputElement,
+    toggleEquatorCheckbox: document.getElementById('toggle-equator') as HTMLInputElement,
+    toggleZodiacLinesCheckbox: document.getElementById('toggle-zodiac-lines') as HTMLInputElement,
+    toggleOtherConstellationLinesCheckbox: document.getElementById('toggle-other-constellation-lines') as HTMLInputElement,
+    toggleConstellationStarsCheckbox: document.getElementById('toggle-constellation-stars') as HTMLInputElement,
+    togglePlanetsCheckbox: document.getElementById('toggle-planets') as HTMLInputElement,
     skyControls: document.getElementById('sky-controls') as HTMLFormElement,
     skySummary: document.getElementById('sky-summary') as HTMLParagraphElement,
   };

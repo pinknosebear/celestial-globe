@@ -68,6 +68,40 @@ html, body {
   gap: 10px;
 }
 
+.sky-form__group {
+  display: grid;
+  gap: 6px;
+}
+
+.segmented-control {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border: 1px solid rgba(194, 211, 220, 0.16);
+  background: rgba(5, 18, 28, 0.45);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.segmented-control__button {
+  min-height: 36px;
+  border: none;
+  border-right: 1px solid rgba(194, 211, 220, 0.14);
+  background: transparent;
+  color: rgba(236, 241, 245, 0.72);
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.segmented-control__button:last-child {
+  border-right: none;
+}
+
+.segmented-control__button.active {
+  background: rgba(233, 217, 169, 0.18);
+  color: #f4efe4;
+}
+
 .sky-form__row {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -166,6 +200,26 @@ html, body {
   background: rgba(233, 217, 169, 0.2);
 }
 
+.sky-form .segmented-control__button {
+  min-height: 36px;
+  border: none;
+  border-right: 1px solid rgba(194, 211, 220, 0.14);
+  border-radius: 0;
+  background: transparent;
+  color: rgba(236, 241, 245, 0.72);
+  font-size: 15px;
+}
+
+.sky-form .segmented-control__button:last-child {
+  border-right: none;
+}
+
+.sky-form .segmented-control__button:hover,
+.sky-form .segmented-control__button.active {
+  background: rgba(233, 217, 169, 0.18);
+  color: #f4efe4;
+}
+
 .place-results {
   display: grid;
   gap: 6px;
@@ -192,6 +246,7 @@ html, body {
   background: rgba(233, 217, 169, 0.14);
 }
 
+.constellation-label,
 .zodiac-label {
   color: #ffffff;
   font-size: 14px;
@@ -205,6 +260,11 @@ html, body {
   white-space: nowrap;
 }
 
+.constellation-label--zodiac {
+  color: #fff5cb;
+  text-shadow: 0 0 12px rgba(255, 238, 189, 0.55);
+}
+
 .planet-label {
   color: #f8edd0;
   font-size: 13px;
@@ -212,6 +272,40 @@ html, body {
   letter-spacing: 0.06em;
   text-shadow: 0 0 10px rgba(255, 238, 189, 0.45);
   transform: translate(-50%, -130%);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.natal-sign-label {
+  color: rgba(244, 239, 228, 0.78);
+  font-size: 12px;
+  font-family: 'Cormorant Garamond', serif;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-shadow: 0 0 10px rgba(8, 31, 43, 0.8);
+  transform: translate(-50%, -50%);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.natal-planet-glyph {
+  color: #fff1bc;
+  font-size: 22px;
+  font-family: 'Times New Roman', serif;
+  font-weight: 700;
+  text-shadow: 0 0 12px rgba(255, 238, 189, 0.55);
+  transform: translate(-50%, -50%);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.natal-planet-label {
+  color: rgba(236, 241, 245, 0.88);
+  font-size: 11px;
+  font-family: 'Cormorant Garamond', serif;
+  letter-spacing: 0.02em;
+  text-shadow: 0 0 10px rgba(8, 31, 43, 0.85);
+  transform: translate(-50%, -50%);
   white-space: nowrap;
   pointer-events: none;
 }

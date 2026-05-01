@@ -15,7 +15,14 @@ import { createGraticule, createEquator } from './rendering/sphere-canvas';
 import { loadStars, createStarGeometry, getStarVisuals } from './rendering/objects/stars';
 import { loadConstellations } from './rendering/objects/constellations';
 import { createPlanets, applyPlanetSnapshot, updatePlanetAnimations } from './rendering/objects/planets';
-import { updateHover, handleConstellationHover, handlePlanetHover } from './ui/interaction';
+import { createNatalChartView, disposeNatalChartView, updateNatalChartView } from './rendering/objects/natal-chart';
+import {
+  applyConstellationVisualState,
+  updateHover,
+  handleConstellationHover,
+  handlePlanetHover,
+  type ConstellationDisplayState,
+} from './ui/interaction';
 import { getControlElements, parseSkyStateFromControls, handlePlaceSearch } from './ui/controls';
 import { getTimeZoneForCoordinates, reverseGeocode } from './astronomy/geolocation';
 import { createCelestialSnapshot } from './astronomy/celestial-snapshot';
@@ -34,6 +41,8 @@ import type {
   PlanetState,
   ResolvedPlace,
 } from './types';
+
+type ViewMode = 'orb' | 'natal2d';
 
 const GRATICULE_STEP = SPHERE.graticulStep;
 const GRATICULE_SEGMENTS = SPHERE.graticuleSegments;
@@ -66,14 +75,31 @@ skyGroup.add(equator);
 
 let starPoints: THREE.Points | null = null;
 let zodiacPoints: THREE.Points | null = null;
-let referencePlanes: THREE.Group | null = null;
 const constellations: ConstellationState[] = [];
 const planets: PlanetState[] = [];
+const natalChart = createNatalChartView();
+scene.add(natalChart.group);
 let hoveredAbbrev: string | null = null;
 let hoveredPlanetName: string | null = null;
 let currentSkyState: SkyState = { ...DEFAULT_SKY_STATE };
+let currentSnapshot: CelestialSnapshot | null = null;
+let viewMode: ViewMode = 'orb';
+let savedOrbCameraPosition: THREE.Vector3 | null = null;
+let savedOrbCameraQuaternion: THREE.Quaternion | null = null;
 let introAnim: IntroAnimState | null = null;
 let enableRotation = true;
+const displayState: ConstellationDisplayState & {
+  showGraticule: boolean;
+  showEquator: boolean;
+  showPlanets: boolean;
+} = {
+  showGraticule: true,
+  showEquator: true,
+  showZodiacLines: true,
+  showOtherConstellationLines: false,
+  showConstellationStars: true,
+  showPlanets: true,
+};
 
 // --- Utility Functions ---
 
@@ -113,9 +139,66 @@ function updateSummary(snapshot: CelestialSnapshot) {
   uiElements.skySummary.textContent = `${snapshot.observer.placeName} | ${dateStr} ${timeStr} ${snapshot.time.offsetLabel} | Elev: ${snapshot.observer.elevation}m`;
 }
 
+function setViewButtonState(mode: ViewMode): void {
+  const isOrb = mode === 'orb';
+  uiElements.viewOrbButton.classList.toggle('active', isOrb);
+  uiElements.viewNatal2dButton.classList.toggle('active', !isOrb);
+  uiElements.viewOrbButton.setAttribute('aria-pressed', String(isOrb));
+  uiElements.viewNatal2dButton.setAttribute('aria-pressed', String(!isOrb));
+}
+
+function applyDisplayState(): void {
+  graticule.visible = displayState.showGraticule;
+  equator.visible = displayState.showEquator;
+  planetGroup.visible = displayState.showPlanets;
+  if (!displayState.showPlanets) {
+    hoveredPlanetName = handlePlanetHover(null, hoveredPlanetName, planets);
+  }
+  applyConstellationVisualState(constellations, zodiacPoints, hoveredAbbrev, displayState);
+}
+
+function clearHoverState(): void {
+  hoveredAbbrev = handleConstellationHover(null, hoveredAbbrev, constellations, zodiacPoints, displayState);
+  hoveredPlanetName = handlePlanetHover(null, hoveredPlanetName, planets);
+}
+
+function setViewMode(mode: ViewMode): void {
+  if (mode === viewMode) return;
+
+  clearHoverState();
+  introAnim = null;
+  viewMode = mode;
+  setViewButtonState(mode);
+
+  if (mode === 'natal2d') {
+    savedOrbCameraPosition = camera.position.clone();
+    savedOrbCameraQuaternion = camera.quaternion.clone();
+    if (currentSnapshot) updateNatalChartView(natalChart, currentSnapshot);
+
+    skyGroup.visible = false;
+    natalChart.group.visible = true;
+    controls.enabled = false;
+    camera.position.set(0, 0, 190);
+    camera.quaternion.identity();
+    camera.lookAt(0, 0, 0);
+    camera.updateProjectionMatrix();
+    return;
+  }
+
+  natalChart.group.visible = false;
+  skyGroup.visible = true;
+  controls.enabled = true;
+  if (savedOrbCameraPosition && savedOrbCameraQuaternion) {
+    camera.position.copy(savedOrbCameraPosition);
+    camera.quaternion.copy(savedOrbCameraQuaternion);
+  }
+  controls.update();
+}
+
 async function applySkyState(state: SkyState) {
   const snapshot = createCelestialSnapshot(state);
   currentSkyState = { ...state };
+  currentSnapshot = snapshot;
 
   uiElements.placeNameInput.value = snapshot.observer.placeName;
   uiElements.dateInput.value = snapshot.time.localDate;
@@ -125,86 +208,47 @@ async function applySkyState(state: SkyState) {
 
   updateSummary(snapshot);
   applyPlanetSnapshot(planets, snapshot);
+  updateNatalChartView(natalChart, snapshot);
   applyRotationMatrixToGroup(skyGroup, snapshot.frames.equatorialToRenderMatrix);
+  applyDisplayState();
 }
 
 // --- Event Handlers ---
 
 const handleMouseMove = (e: Event) => {
+  if (viewMode !== 'orb') {
+    clearHoverState();
+    return;
+  }
+
   const me = e as MouseEvent;
   const rect = renderer.domElement.getBoundingClientRect();
   const isOverCanvas = me.clientX >= rect.left && me.clientX <= rect.right &&
                        me.clientY >= rect.top && me.clientY <= rect.bottom;
 
   if (isOverCanvas) {
-    updateHover(me.clientX, me.clientY, camera, constellations, planets, (abbrev) => {
-      hoveredAbbrev = handleConstellationHover(abbrev, hoveredAbbrev, constellations, zodiacPoints);
+    updateHover(me.clientX, me.clientY, camera, constellations, displayState.showPlanets ? planets : [], (abbrev) => {
+      hoveredAbbrev = handleConstellationHover(abbrev, hoveredAbbrev, constellations, zodiacPoints, displayState);
     }, (name) => {
-      // When a planet is hovered, find and highlight its containing constellation
-      let constellationToHighlight: string | null = null;
-      if (name) {
-        const hoveredPlanet = planets.find(p => p.name === name);
-        if (hoveredPlanet) {
-          const planetPos = hoveredPlanet.sprite.position;
-          let closestConstellation: ConstellationState | null = null;
-          let closestDist = Infinity;
-
-          for (const constellation of constellations) {
-            const hitMeshPos = constellation.hitMesh.position;
-            const dist = planetPos.distanceTo(hitMeshPos);
-            if (dist < closestDist) {
-              closestDist = dist;
-              closestConstellation = constellation;
-            }
-          }
-
-          if (closestConstellation) {
-            constellationToHighlight = closestConstellation.abbrev;
-          }
-        }
-      }
-
-      hoveredAbbrev = handleConstellationHover(constellationToHighlight, hoveredAbbrev, constellations, zodiacPoints);
       hoveredPlanetName = handlePlanetHover(name, hoveredPlanetName, planets);
     });
   } else {
     // Clear hover when cursor is over UI or outside canvas
-    hoveredAbbrev = handleConstellationHover(null, hoveredAbbrev, constellations, zodiacPoints);
-    hoveredPlanetName = handlePlanetHover(null, hoveredPlanetName, planets);
+    clearHoverState();
   }
 };
 
 const handleTouchMove = (e: Event) => {
+  if (viewMode !== 'orb') {
+    clearHoverState();
+    return;
+  }
+
   const te = e as TouchEvent;
   if (te.touches.length > 0) {
-    updateHover(te.touches[0].clientX, te.touches[0].clientY, camera, constellations, planets, (abbrev) => {
-      hoveredAbbrev = handleConstellationHover(abbrev, hoveredAbbrev, constellations, zodiacPoints);
+    updateHover(te.touches[0].clientX, te.touches[0].clientY, camera, constellations, displayState.showPlanets ? planets : [], (abbrev) => {
+      hoveredAbbrev = handleConstellationHover(abbrev, hoveredAbbrev, constellations, zodiacPoints, displayState);
     }, (name) => {
-      // When a planet is hovered, find and highlight its containing constellation
-      let constellationToHighlight: string | null = null;
-      if (name) {
-        const hoveredPlanet = planets.find(p => p.name === name);
-        if (hoveredPlanet) {
-          const planetPos = hoveredPlanet.sprite.position;
-          let closestConstellation: ConstellationState | null = null;
-          let closestDist = Infinity;
-
-          for (const constellation of constellations) {
-            const hitMeshPos = constellation.hitMesh.position;
-            const dist = planetPos.distanceTo(hitMeshPos);
-            if (dist < closestDist) {
-              closestDist = dist;
-              closestConstellation = constellation;
-            }
-          }
-
-          if (closestConstellation) {
-            constellationToHighlight = closestConstellation.abbrev;
-          }
-        }
-      }
-
-      hoveredAbbrev = handleConstellationHover(constellationToHighlight, hoveredAbbrev, constellations, zodiacPoints);
       hoveredPlanetName = handlePlanetHover(name, hoveredPlanetName, planets);
     });
   }
@@ -301,40 +345,28 @@ async function init() {
     enableRotation = uiElements.enableRotationCheckbox.checked;
   });
 
-  // Wire visibility toggles — consolidated, reusable pattern
-  const VISIBILITY_TOGGLES = [
-    { id: 'toggle-graticule', object: graticule },
-    { id: 'toggle-equator', object: equator },
-    { id: 'toggle-constellations', getter: () => constellations, isArray: true },
-    { id: 'toggle-zodiac-stars', object: zodiacPoints },
-    { id: 'toggle-reference-planes', getter: () => referencePlanes },
-  ];
+  uiElements.viewOrbButton.addEventListener('click', () => setViewMode('orb'));
+  uiElements.viewNatal2dButton.addEventListener('click', () => setViewMode('natal2d'));
 
-  VISIBILITY_TOGGLES.forEach(({ id, object, getter, isArray }) => {
-    const toggle = document.getElementById(id) as HTMLInputElement;
-    if (toggle) {
-      toggle.addEventListener('change', (e) => {
-        const isChecked = (e.target as HTMLInputElement).checked;
-        const target = object || (getter ? getter() : null);
+  const wireDisplayCheckbox = (
+    checkbox: HTMLInputElement,
+    key: keyof typeof displayState
+  ) => {
+    checkbox.addEventListener('change', () => {
+      displayState[key] = checkbox.checked;
+      applyDisplayState();
+    });
+  };
 
-        if (isArray) {
-          // For arrays like constellations, toggle all line visibility
-          (target as any[]).forEach((item: any) => {
-            if (item.lines && Array.isArray(item.lines)) {
-              item.lines.forEach((line: any) => {
-                line.visible = isChecked;
-              });
-            }
-          });
-        } else if (target) {
-          // For single objects, toggle visibility directly
-          target.visible = isChecked;
-        }
-      });
-    }
-  });
+  wireDisplayCheckbox(uiElements.toggleGraticuleCheckbox, 'showGraticule');
+  wireDisplayCheckbox(uiElements.toggleEquatorCheckbox, 'showEquator');
+  wireDisplayCheckbox(uiElements.toggleZodiacLinesCheckbox, 'showZodiacLines');
+  wireDisplayCheckbox(uiElements.toggleOtherConstellationLinesCheckbox, 'showOtherConstellationLines');
+  wireDisplayCheckbox(uiElements.toggleConstellationStarsCheckbox, 'showConstellationStars');
+  wireDisplayCheckbox(uiElements.togglePlanetsCheckbox, 'showPlanets');
 
   // Apply initial sky state
+  setViewButtonState(viewMode);
   applySkyState({ ...DEFAULT_SKY_STATE });
 
   // Trigger zoom-out animation after sky state is loaded
@@ -365,7 +397,7 @@ function animate() {
       introAnim = null;
       controls.update();
     }
-  } else {
+  } else if (viewMode === 'orb') {
     controls.update();
     const cameraDistance = camera.position.length();
     updateAutoRotate(controls, enableRotation && shouldAutoRotate(cameraDistance));
@@ -382,7 +414,9 @@ function animate() {
   starMaterial.uniforms['sizeMult'].value = 1.0 - t * 0.32;
   bloomPass.strength = 0.2 - t * 0.14;
 
-  updatePlanetAnimations(planets, elapsed);
+  if (viewMode === 'orb') {
+    updatePlanetAnimations(planets, elapsed);
+  }
 
   composer.render();
   labelRenderer.render(scene, camera);
@@ -425,6 +459,7 @@ function dispose() {
   equatorMaterial.dispose();
   starMaterial.dispose();
   zodiacStarMaterial.dispose();
+  disposeNatalChartView(natalChart);
 
   disposeScene(setup);
 }

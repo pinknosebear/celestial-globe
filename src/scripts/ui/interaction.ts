@@ -3,8 +3,79 @@
  */
 
 import * as THREE from 'three';
-import { CONSTELLATIONS } from '../config/constants';
 import type { ConstellationState, PlanetState } from '../types';
+
+export interface ConstellationDisplayState {
+  showZodiacLines: boolean;
+  showOtherConstellationLines: boolean;
+  showConstellationStars: boolean;
+}
+
+const HOVER_SIZE_MULTIPLIER = 2.5;
+const HOVER_BRIGHTNESS_MULTIPLIER = 2.0;
+
+function setLabelVisible(constellation: ConstellationState, visible: boolean): void {
+  constellation.label.visible = visible;
+  constellation.label.element.style.display = visible ? 'block' : 'none';
+}
+
+function selectHoveredConstellation(
+  hits: THREE.Intersection[],
+  constellations: ConstellationState[]
+): string | null {
+  const byAbbrev = new Map(constellations.map((constellation) => [constellation.abbrev, constellation]));
+  const hitConstellations = hits
+    .map((hit) => byAbbrev.get((hit.object.userData as any).abbrev as string))
+    .filter((constellation): constellation is ConstellationState => Boolean(constellation));
+  const zodiacHit = hitConstellations.find((constellation) => constellation.isZodiac);
+
+  return (zodiacHit ?? hitConstellations[0])?.abbrev ?? null;
+}
+
+export function applyConstellationVisualState(
+  constellations: ConstellationState[],
+  zodiacPoints: THREE.Points | null,
+  hoveredAbbrev: string | null,
+  displayState: ConstellationDisplayState
+): void {
+  for (const constellation of constellations) {
+    const isHovered = constellation.abbrev === hoveredAbbrev;
+    const baseLineVisible = constellation.isZodiac
+      ? displayState.showZodiacLines
+      : displayState.showOtherConstellationLines;
+
+    constellation.baseLineVisible = baseLineVisible;
+    constellation.hoverLineVisible = isHovered;
+    for (const line of constellation.lines) {
+      line.visible = baseLineVisible || isHovered;
+    }
+    setLabelVisible(constellation, isHovered);
+  }
+
+  if (!zodiacPoints) return;
+
+  zodiacPoints.visible = displayState.showConstellationStars;
+  const sizeAttr = zodiacPoints.geometry.attributes['starSize'] as THREE.BufferAttribute;
+  const brightAttr = zodiacPoints.geometry.attributes['brightness'] as THREE.BufferAttribute;
+
+  for (const constellation of constellations) {
+    const isHovered = constellation.abbrev === hoveredAbbrev;
+    for (let i = 0; i < constellation.starIndices.length; i++) {
+      const si = constellation.starIndices[i];
+      const size = isHovered
+        ? constellation.baseSizes[i] * HOVER_SIZE_MULTIPLIER
+        : constellation.baseSizes[i];
+      const brightness = isHovered
+        ? Math.min(1.0, constellation.baseBrightnesses[i] * HOVER_BRIGHTNESS_MULTIPLIER)
+        : constellation.baseBrightnesses[i];
+      sizeAttr.setX(si, size);
+      brightAttr.setX(si, brightness);
+    }
+  }
+
+  sizeAttr.needsUpdate = true;
+  brightAttr.needsUpdate = true;
+}
 
 /**
  * Update hover state based on mouse/touch position.
@@ -31,7 +102,7 @@ export function updateHover(
   const hits = raycaster.intersectObjects(hitMeshes);
   const planetHits = raycaster.intersectObjects(planets.map(p => p.sprite), false);
 
-  const newHovered = hits.length > 0 ? ((hits[0].object.userData as any).abbrev as string) : null;
+  const newHovered = selectHoveredConstellation(hits, constellations);
   const newHoveredPlanet = planetHits.length > 0 ? ((planetHits[0].object.userData as any).planetName as string) : null;
 
   onConstellationHover(newHovered);
@@ -45,57 +116,11 @@ export function handleConstellationHover(
   newHovered: string | null,
   prevHovered: string | null,
   constellations: ConstellationState[],
-  zodiacPoints: THREE.Points | null
+  zodiacPoints: THREE.Points | null,
+  displayState: ConstellationDisplayState
 ): string | null {
   if (newHovered !== prevHovered) {
-    // Hide all labels first
-    for (const constellation of constellations) {
-      constellation.label.visible = false;
-      if (constellation.label.element) {
-        constellation.label.element.style.display = 'none';
-      }
-    }
-
-    if (!zodiacPoints) return newHovered;
-
-    const isZodiac = newHovered && CONSTELLATIONS.zodiacSet.includes(newHovered as any);
-    const sizeAttr = zodiacPoints.geometry.attributes['starSize'] as THREE.BufferAttribute;
-    const brightAttr = zodiacPoints.geometry.attributes['brightness'] as THREE.BufferAttribute;
-
-    // Always restore all stars to base brightness first (clear any previous zodiac boost)
-    for (const constellation of constellations) {
-      for (let i = 0; i < constellation.starIndices.length; i++) {
-        const si = constellation.starIndices[i];
-        sizeAttr.setX(si, constellation.baseSizes[i]);
-        brightAttr.setX(si, constellation.baseBrightnesses[i]);
-      }
-    }
-
-    if (newHovered && isZodiac) {
-      // Zodiac constellation: brighten stars and show label
-      const next = constellations.find(c => c.abbrev === newHovered)!;
-
-      for (let i = 0; i < next.starIndices.length; i++) {
-        const si = next.starIndices[i];
-        sizeAttr.setX(si, next.baseSizes[i] * 2.5);
-        brightAttr.setX(si, Math.min(1.0, next.baseBrightnesses[i] * 2.0));
-      }
-
-      next.label.visible = true;
-      if (next.label.element) {
-        next.label.element.style.display = 'block';
-      }
-    } else if (newHovered && !isZodiac) {
-      // Non-zodiac constellation: show label only (no brightness/size boost)
-      const next = constellations.find(c => c.abbrev === newHovered)!;
-      next.label.visible = true;
-      if (next.label.element) {
-        next.label.element.style.display = 'block';
-      }
-    }
-
-    sizeAttr.needsUpdate = true;
-    brightAttr.needsUpdate = true;
+    applyConstellationVisualState(constellations, zodiacPoints, newHovered, displayState);
   }
 
   return newHovered;

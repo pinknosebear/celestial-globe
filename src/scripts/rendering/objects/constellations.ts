@@ -5,9 +5,9 @@
 import * as THREE from 'three';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { SPHERE, CONSTELLATIONS } from '../../config/constants';
-import { THEME } from '../../config/theme';
 import { raDegDecDegToXYZ } from '../../astronomy/calculations';
 import { getStarVisuals } from './stars';
+import { createConstellationLineMaterial } from '../materials';
 import type { ZodiacData, ConstellationState } from '../../types';
 
 /**
@@ -119,17 +119,12 @@ export async function loadConstellations(
       const pts = segment.map((coord: number[]) =>
         raDegDecDegToXYZ(coord[0], coord[1], SPHERE.radius)
       );
-      const lineColor = isZodiac ? THEME.colors.constellationLinesZodiac : THEME.colors.constellationLines;
-      const lineMat = new THREE.LineBasicMaterial({
-        color: lineColor,
-        transparent: true,
-        opacity: THEME.opacity.constellationLines,
-        depthWrite: false,
-      });
+      const lineMat = createConstellationLineMaterial(isZodiac);
       const segLine = new THREE.Line(
         new THREE.BufferGeometry().setFromPoints(pts),
         lineMat
       );
+      segLine.visible = isZodiac;
       skyGroup.add(segLine);
       segLines.push(segLine);
       segMats.push(lineMat);
@@ -168,7 +163,7 @@ export async function loadConstellations(
     skyGroup.add(labelAnchor);
 
     const div = document.createElement('div');
-    div.className = 'zodiac-label';
+    div.className = isZodiac ? 'constellation-label constellation-label--zodiac' : 'constellation-label';
     div.textContent = entry.name;
     const label = new CSS2DObject(div);
     label.visible = false;
@@ -177,13 +172,17 @@ export async function loadConstellations(
     constellations.push({
       abbrev,
       name: entry.name,
+      isZodiac,
       starIndices,
       baseSizes: new Float32Array(starIndices.map(si => zSizes[si])),
       baseBrightnesses: new Float32Array(starIndices.map(si => zBrightnesses[si])),
       lines: segLines,
       mats: segMats,
       label,
+      labelAnchor,
       hitMesh,
+      baseLineVisible: isZodiac,
+      hoverLineVisible: false,
     });
   }
 

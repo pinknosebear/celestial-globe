@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { PLANETS, SPHERE } from '../../config/constants';
 import { createPlanetSpriteMaterial } from '../materials';
+import { formatZodiacLongitude } from '../../astronomy/zodiac-format';
 import type { CelestialSnapshot, PlanetState } from '../../types';
 
 /**
@@ -70,6 +71,8 @@ export function applyPlanetSnapshot(
       5.5,
       15
     );
+    const retrogradeMarker = body.astrology.retrograde ? ' ℞' : '';
+    planet.label.element.textContent = `${planet.name} — ${formatZodiacLongitude(body.astrology.ecliptic.longitudeDeg)}${retrogradeMarker}`;
 
     planet.sprite.position.copy(position);
     planet.currentScale = scale;
