@@ -46,23 +46,59 @@ This file is the fast-start context doc for a new session. Keep it lean and alig
 
 ## Architecture Rules
 
+### The Snapshot Pattern (Core Design)
+
+**One canonical snapshot per observer/timestamp:**
+- `CelestialSnapshot` is computed once per user action via `computeCelestialSnapshot(skyState)`
+- It is **immutable** after construction
+- All downstream code reads from the snapshot, never recomputes
+- **No recomputation drift**: 3D globe, 2D chart, and aspects all reference the same BodySnapshot data
+
+**Strict layer separation:**
+```
+astronomy/ (computation)
+  ├─ calculations.ts      — ephemeris calls, coordinate conversions, all math
+  └─ aspects.ts           — ecliptic longitude relationships (no 3D vectors)
+
+rendering/ (projection)
+  ├─ planets.ts           — RA/Dec → 3D XYZ, update sprites
+  └─ sky-chart-2d.ts      — RA/Dec → Alt/Az, stereographic projection
+
+ui/ (consumers)
+  └─ export.ts            — serialize snapshot, no recomputation
+```
+
+**Invariant**: No `Astronomy.*` call outside `astronomy/` directory. No `THREE.*` import inside `astronomy/` directory.
+
 ### Data pipeline decision tree
-- **Stable small reference data**: commit it when practical
-- **Large generated static data**: regenerate into `public/` and gitignore it
-- **Daily or real-time data**: fetch at runtime
-- Current repo state: `npm run build` checks for generated data files and uses them as-is; refresh is explicit via setup / generator scripts
-- Architectural split: static star catalog and zodiac line data are generated assets, while future date/location sky state should be computed at runtime
-- Moving bodies and true live astronomy data belong in a runtime ephemeris path, not in build-time asset generation
+- **Stable small reference data** (stars, zodiac): commit when practical, or regenerate into `public/` and gitignore
+- **Live ephemeris data** (planet positions, ecliptic): compute at runtime via `computeCelestialSnapshot()`
+- **Multi-state support**: hold multiple `CelestialSnapshot` objects (e.g., `currentSnapshot` + `natalSnapshot`)
 
 ### Coordinate system
-- RA in hours -> radians: `ra * pi / 12`
-- RA in degrees -> radians: `ra * pi / 180`
-- Dec in degrees -> radians: `dec * pi / 180`
-- xyz: `x = cos(dec) * cos(ra)`, `y = sin(dec)`, `z = cos(dec) * sin(ra)`
-- The same conversion is used across stars, zodiac line vertices, and future boundary work
+- **RA/Dec (Equatorial)** — authoritative form from ephemeris engine
+  - RA in hours → degrees: `ra * 15`
+  - RA in degrees → radians: `ra * pi / 180`
+  - Dec in degrees → radians: `dec * pi / 180`
+  - XYZ on unit sphere: `x = cos(dec) * cos(ra)`, `y = sin(dec)`, `z = cos(dec) * sin(ra)`
+
+- **Ecliptic Longitude** — astrological form (0–360° tropical)
+  - Computed via `astronomy-engine`'s `Astronomy.Ecliptic()` (handles precession correctly)
+  - Not via manual obliquity rotation (would drift)
+  - Stored on `BodySnapshot.eclipticLon`
+
+- **Alt/Az (Horizontal)** — observer-dependent form
+  - Computed from RA/Dec + LST + latitude when needed (not stored)
+  - Used for 2D planisphere and horizon visibility
+
+- **LST (Local Sidereal Time)** — observer-dependent rotation angle
+  - Computed from UTC + observer longitude
+  - Used to build rotation matrix via `buildSkyRotationMatrix()`
+  - Stored on `CelestialSnapshot.lst`
 
 ### Rendering
-- All Three.js logic lives in `src/scripts/`
+- All Three.js logic lives in `src/scripts/rendering/`
+- Rendering code **never calls astronomy functions** — it reads from `CelestialSnapshot`
 - Astro pages stay thin and only provide DOM scaffolding
 - CSS is imported from Astro frontmatter, not linked from `src/`
 - Custom shader attribute names avoid Three.js built-in collisions
@@ -71,52 +107,100 @@ This file is the fast-start context doc for a new session. Keep it lean and alig
 - Variable-width lines use `Line2` + `LineMaterial`
 - DOM labels use `CSS2DRenderer`
 
-## Current Work (Astrological Data Layer — Phase 2)
+## Current Architecture Refactor (In Progress)
 
-See `PLAN.md` for detailed implementation phases:
-1. ✓ Current datetime defaults
-2. LST-based sky rotation fix (in progress)
-3. Ecliptic longitude + astrological data layer
-4. chart2txt integration
-5. 2D sky chart (stereographic projection)
-6. Export (JSON + PNG)
-7. UI updates + styling
+**Goal**: Introduce `CelestialSnapshot` — a unified, immutable intermediate representation of the sky state. This enables multi-view consistency (3D + 2D), aspects, and natal charts without recomputation drift.
+
+**Core change**: Replace scattered computation in `updatePlanetPositions()` and `applySkyState()` with a single source of truth computed in the astronomy layer.
+
+### The CelestialSnapshot Pattern
+
+Each user interaction (date/location/time change) now follows:
+
+```
+SkyState (user input)
+       ↓
+computeCelestialSnapshot()  ← single source of truth, astronomy layer
+       ↓
+CelestialSnapshot (immutable snapshot)
+  ├─ observer context (utcDate, lat/lon/elev)
+  ├─ lst, rotationMatrix
+  └─ bodies: Map<name, BodySnapshot>
+       ├─ raDeg, decDeg (equatorial)
+       ├─ eclipticLon, eclipticLat
+       ├─ signName, degreeInSign, retrograde
+       └─ magnitude
+       ↓
+   [Snapshot passed to all downstream consumers]
+       ├─ renderGlobe()        (3D projection)
+       ├─ renderChart()        (2D stereographic)
+       ├─ computeAspects()     (ecliptic longitude relationships)
+       └─ exportJSON()         (no re-computation)
+```
+
+**Key invariant**: No ephemeris call (`Astronomy.*`) happens anywhere except inside `computeCelestialSnapshot()`. All rendering and relational logic is a pure projection/interpretation of the snapshot.
+
+### Implementation Phases
+
+1. ✓ **Types** — Add `BodySnapshot`, `CelestialSnapshot`, `Aspect` to `types.ts`
+2. **Computation** — Add `computeCelestialSnapshot()` to `calculations.ts`
+3. **Rendering** — Refactor `planets.ts` to consume snapshot, not compute positions
+4. **Orchestration** — Refactor `app.ts` to wire snapshot through the app
+5. **Aspects** — Create `aspects.ts` (ecliptic longitude differences, not 3D vectors)
+6. **2D Chart** — Create `sky-chart-2d.ts` (pure projection function)
+7. **Multi-state** — Add `natalSnapshot` alongside `currentSnapshot` for natal chart support
 
 ## Future Phases
-- **Phase 2b**: Non-zodiac constellations (88 constellation boundary polygons from IAU)
-- **Phase 3**: Natal chart support (birth data input, aspects, dispositor chains)
-- **Phase 4**: Transit overlay (current vs natal, aspect patterns)
-- **Phase 5**: Theme customization UI, mobile optimization
-- **Phase 6**: Milky Way rendering, ecliptic line, more celestial reference objects
+
+**Post-refactor (enabled by CelestialSnapshot):**
+- **Phase 3**: Natal chart support
+  - Add birth data input form → `natalSnapshot = computeCelestialSnapshot(birthSkyState)`
+  - Render natal planets on 3D globe (different color) + 2D chart
+  - Compute natal self-aspects via `computeAspects(natalSnapshot)`
+
+- **Phase 4**: Transit overlay
+  - Display `natalSnapshot` + `currentSnapshot` side-by-side (or toggle)
+  - Compute transit aspects via `computeTransitAspects(natalSnapshot, currentSnapshot)`
+  - Highlight active aspects (conjunctions, squares, etc.)
+
+- **Phase 4b**: House systems
+  - Requires splitting `CelestialSnapshot` into `CelestialSnapshot` (frame-independent) + `ObserverProjection` (observer-dependent)
+  - House cusps are observer-dependent; celestial body positions are not
+
+**Longer-term:**
+- **Phase 2b**: Non-zodiac constellations (88 IAU boundary polygons)
+- **Phase 5**: Sidereal astrology toggle (requires separating astronomical from astrological semantics)
+- **Phase 6**: Theme customization UI, mobile optimization
+- **Phase 7**: Milky Way rendering, ecliptic line, more celestial reference objects
 
 ## File Layout
 ```text
 src/
   pages/index.astro                # HTML shell + #labels overlay
   scripts/
-    app.ts                         # Main orchestrator (replaces globe.ts)
-    types.ts                       # Shared TypeScript interfaces
+    app.ts                         # Main orchestrator, state management
+    types.ts                       # Shared types (SkyState, CelestialSnapshot, BodySnapshot, Aspect)
     config/
       theme.ts                     # Color, font, opacity configuration
-      constants.ts                 # Magic numbers (sphere, camera, animation)
+      constants.ts                 # Magic numbers (sphere, camera, animation, planets list)
       defaults.ts                  # Default observer location/date
-    astronomy/
-      calculations.ts              # Coordinate math (LST, ecliptic, Alt/Az)
-      sky-state.ts                 # Observer state management
+    astronomy/                     # Pure computation, no Three.js
+      calculations.ts              # LST, rotation matrix, coordinate conversions
+                                   # NEW: computeCelestialSnapshot(), raDecToAltAz()
+      aspects.ts                   # NEW: ecliptic longitude-based aspect detection
       geolocation.ts               # Nominatim API, timezone lookup
-      chart-report.ts              # chart2txt integration
-    rendering/
-      scene.ts                     # Three.js initialization
+      chart-report.ts              # chart2txt integration (placeholder)
+    rendering/                     # Pure projection, no Astronomy.* calls
+      scene.ts                     # Three.js initialization, camera, lighting
       materials.ts                 # Shader materials
       sphere-canvas.ts             # Graticule, equator
-      sky-chart-2d.ts              # 2D stereographic chart renderer
+      sky-chart-2d.ts              # NEW: stereographic 2D planisphere renderer
       objects/
-        stars.ts                   # Star point cloud
+        stars.ts                   # Star point cloud from HYG catalog
         constellations.ts          # Zodiac lines, labels, hit meshes
-        planets.ts                 # Planet sprites, positions, animations
-    ui/
+        planets.ts                 # UPDATED: consumes CelestialSnapshot, no ephemeris calls
+    ui/                            # User interaction
       controls.ts                  # Form input parsing
-      events.ts                    # Event listener setup
       interaction.ts               # Hover detection, raycasting
       export.ts                    # JSON + PNG export
     animation/
@@ -131,6 +215,38 @@ tools/
 public/
   stars.json                       # Gitignored, regenerated by `npm run stars`
   zodiac.json                      # Gitignored, regenerated by `npm run constellations`
+```
+
+### Key Type Definitions (types.ts)
+
+```ts
+// User input
+interface SkyState {
+  latitude, longitude, elevation;
+  date, time, timeZone;  // resolved to UTC via makeObservationDate()
+}
+
+// Per-body astronomical + astrological data
+interface BodySnapshot {
+  name, body;
+  raDeg, decDeg;                    // equatorial (from ephemeris)
+  eclipticLon, eclipticLat;         // ecliptic (via astronomy-engine)
+  signName, degreeInSign, retrograde;
+  magnitude;
+}
+
+// Canonical sky state — immutable snapshot
+interface CelestialSnapshot {
+  utcDate, latitude, longitude, elevation;
+  lst, rotationMatrix;              // observer transforms
+  bodies: Map<string, BodySnapshot>;
+}
+
+// Astrological relationships
+type AspectType = 'conjunction' | 'sextile' | 'square' | 'trine' | 'opposition';
+interface Aspect {
+  bodyA, bodyB, type, angle, orb;   // angle = ecliptic longitude separation
+}
 ```
 
 ## Commands
@@ -148,6 +264,119 @@ npm run constellations
 - Normal development after setup: `npm run dev`
 - Normal production check: `npm run build`
 - If `public/stars.json` or `public/zodiac.json` is missing, `prebuild` fails fast with a clear message from `tools/ensure-generated-data.mjs`
+
+## How to Extend This Architecture
+
+### Adding a new feature that consumes sky data
+
+Example: "Display planet altitude above horizon on the 3D globe labels"
+
+1. **Check if the data exists on `CelestialSnapshot`:**
+   - Does `BodySnapshot` have what I need? (RA/Dec, ecliptic, magnitude, retrograde)
+   - Does `CelestialSnapshot` have observer context? (LST, latitude, longitude)
+   - If yes, proceed to step 3. If no, go to step 2.
+
+2. **If new data is needed, add it to `computeCelestialSnapshot()`:**
+   ```ts
+   export function computeCelestialSnapshot(state: SkyState): CelestialSnapshot {
+     // ... existing code ...
+     for (const planetDef of PLANETS) {
+       // ... existing computation ...
+       const { altDeg, azDeg } = raDecToAltAz(raDeg, decDeg, lst, latitude);
+       bodies.set(planetDef.name, {
+         // ... existing fields ...
+         altDeg,   // NEW
+         azDeg,    // NEW
+       });
+     }
+   }
+   ```
+   Update `BodySnapshot` type to include `altDeg`, `azDeg`.
+
+3. **Consume the snapshot in your feature code:**
+   ```ts
+   // In rendering or UI code
+   function updatePlanetLabel(planet: PlanetState, snapshot: CelestialSnapshot) {
+     const bodyData = snapshot.bodies.get(planet.name);
+     const altitude = bodyData!.altDeg;
+     planet.label.textContent = `${planet.name} (${altitude.toFixed(1)}°)`;
+   }
+   ```
+
+4. **Call your feature from `app.ts`:**
+   ```ts
+   function applySkyState(state: SkyState) {
+     currentSnapshot = computeCelestialSnapshot(state);
+     updatePlanetPositions(planets, currentSnapshot);
+     updatePlanetLabel(planets[0], currentSnapshot);  // NEW
+   }
+   ```
+
+**Key principle**: The snapshot is the **only communication channel** between computation and rendering. Don't compute anything inside a render function.
+
+### Adding a relational feature (aspects, conjunctions, etc.)
+
+Example: "Show lines between conjunct planets"
+
+1. **Add to `aspects.ts`:**
+   ```ts
+   export function computeConjunctions(snapshot: CelestialSnapshot) {
+     return computeAspects(snapshot).filter(a => a.type === 'conjunction');
+   }
+   ```
+
+2. **In `app.ts`:**
+   ```ts
+   const conjunctions = computeConjunctions(currentSnapshot);
+   renderAspectLines(conjunctions, currentSnapshot);
+   ```
+
+3. **For 3D rendering**, use the snapshot's rotation matrix:
+   ```ts
+   const posA = snapshot.bodies.get(aspect.bodyA)!.position;  // pre-compute XYZ
+   const posB = snapshot.bodies.get(aspect.bodyB)!.position;
+   drawLine(posA, posB);  // apply rotation matrix to skyGroup, not individual lines
+   ```
+
+**Key principle**: Relational logic (aspects, synastry, etc.) **never recomputes positions**. It reads pre-computed data from the snapshot.
+
+---
+
+## The CelestialSnapshot Decision
+
+### Why This Matters
+
+Before the snapshot pattern, the codebase had **no canonical representation** of the sky state:
+- Planet positions lived only on Three.js sprites
+- Ecliptic data was computed in `updatePlanetPositions`, not stored
+- `currentSkyState` was a single mutable variable with no snapshot
+- No way to support natal charts + transits without recomputation
+
+**The snapshot solves three problems:**
+
+1. **Single source of truth** — All downstream code (3D globe, 2D chart, aspects) reads from one immutable snapshot, never recomputes
+2. **Multi-state support** — Hold `currentSnapshot` and `natalSnapshot` simultaneously for natal chart features
+3. **Clean layering** — Astronomy code computes once; rendering/UI layers consume without recalculating
+
+### The Core Invariant
+
+```
+One snapshot per (observer, date, time)
+  ↓
+computeCelestialSnapshot() [only place ephemeris is called]
+  ↓
+CelestialSnapshot [immutable after construction]
+  ↓
+All downstream reads from snapshot, zero recomputation
+```
+
+This pattern will be reusable for:
+- Natal charts (second snapshot with birth data)
+- Transits (compute aspects between two snapshots)
+- House systems (wrap snapshot with observer projection)
+- Sidereal astrology (compute alternate snapshot with different coordinate system)
+
+---
 
 ## Key Technical Learnings
 
