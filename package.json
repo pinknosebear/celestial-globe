@@ -7,6 +7,7 @@
     "prebuild": "node tools/process-stars.mjs && node tools/process-constellations.mjs && node tools/ensure-generated-data.mjs",
     "build": "astro build",
     "preview": "astro preview",
+    "test": "vitest run",
     "setup-data": "node tools/process-stars.mjs && node tools/process-constellations.mjs",
     "stars": "node tools/process-stars.mjs",
     "constellations": "node tools/process-constellations.mjs"
@@ -19,6 +20,7 @@
     "tz-lookup": "^6.1.25"
   },
   "devDependencies": {
-    "@types/three": "^0.175.0"
+    "@types/three": "^0.175.0",
+    "vitest": "^4.1.5"
   }
 }

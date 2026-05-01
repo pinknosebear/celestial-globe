@@ -2,7 +2,7 @@
  * UI Controls — form input handling, location/date updates.
  */
 
-import { searchPlaces, reverseGeocode } from '../astronomy/geolocation';
+import { getTimeZoneForCoordinates, searchPlaces, reverseGeocode } from '../astronomy/geolocation';
 import type { SkyState, ResolvedPlace } from '../types';
 
 export interface ControlElements {
@@ -146,7 +146,7 @@ export async function handleUseMyLocation(
         name,
         latitude,
         longitude,
-        timeZone: new Intl.DateTimeFormat('en-US', { timeZone: 'UTC' }).resolvedOptions().timeZone,
+        timeZone: getTimeZoneForCoordinates(latitude, longitude),
       };
       elements.placeNameInput.value = name;
       onPlaceSelected(place);

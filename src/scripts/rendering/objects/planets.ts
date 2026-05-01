@@ -2,18 +2,11 @@
  * Planets — planet rendering (sprites, labels, position updates).
  */
 
-import * as Astronomy from 'astronomy-engine';
 import * as THREE from 'three';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { PLANETS, SPHERE } from '../../config/constants';
-import {
-  raDegDecDegToXYZ,
-  getEclipticLongitude,
-  isRetrograde,
-  getZodiacSignInfo,
-} from '../../astronomy/calculations';
 import { createPlanetSpriteMaterial } from '../materials';
-import type { SkyState, PlanetState } from '../../types';
+import type { CelestialSnapshot, PlanetState } from '../../types';
 
 /**
  * Create planet objects from configuration.
@@ -37,8 +30,8 @@ export function createPlanets(planetGroup: THREE.Group): PlanetState[] {
     sprite.add(label);
 
     planets.push({
+      id: planetDef.id,
       name: planetDef.name,
-      body: (Astronomy.Body as any)[planetDef.name],
       baseSize: planetDef.size,
       currentScale: planetDef.size,
       pulsePhase: Math.random() * Math.PI * 2,
@@ -53,33 +46,35 @@ export function createPlanets(planetGroup: THREE.Group): PlanetState[] {
 }
 
 /**
- * Update planet positions based on observer location and observation date.
+ * Apply immutable snapshot positions to planet sprites.
  */
-export function updatePlanetPositions(
+export function applyPlanetSnapshot(
   planets: PlanetState[],
-  state: SkyState,
-  observationDate: Date,
-  observer: Astronomy.Observer
+  snapshot: CelestialSnapshot
 ): void {
   for (const planet of planets) {
-    const eq = Astronomy.Equator(planet.body, observationDate, observer, false, true);
-    const position = raDegDecDegToXYZ(eq.ra * 15, eq.dec, SPHERE.radius - 1);
-    const mag = Astronomy.Illumination(planet.body, observationDate).mag;
-    const scale = THREE.MathUtils.clamp(planet.baseSize + (2.5 - mag) * 0.35, 5.5, 15);
+    const body = snapshot.bodiesById[planet.id];
+    if (!body) {
+      planet.sprite.visible = false;
+      continue;
+    }
 
-    // Compute astrological ecliptic data
-    const eclipticLon = getEclipticLongitude(planet.body, observationDate);
-    const retrograde = isRetrograde(planet.body, observationDate);
-    const zodiac = getZodiacSignInfo(eclipticLon);
+    const unit = body.apparent.equatorial.unitVector;
+    const position = new THREE.Vector3(
+      unit[0] * (SPHERE.radius - 1),
+      unit[1] * (SPHERE.radius - 1),
+      unit[2] * (SPHERE.radius - 1)
+    );
+    const scale = THREE.MathUtils.clamp(
+      planet.baseSize + (2.5 - body.illumination.magnitude) * 0.35,
+      5.5,
+      15
+    );
 
     planet.sprite.position.copy(position);
     planet.currentScale = scale;
     planet.sprite.scale.setScalar(scale);
     planet.sprite.visible = true;
-    planet.eclipticLongitude = eclipticLon;
-    planet.retrograde = retrograde;
-    planet.signName = zodiac.signName;
-    planet.degreeInSign = zodiac.degreeInSign;
   }
 }
 

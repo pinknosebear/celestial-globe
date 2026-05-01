@@ -3,8 +3,6 @@
  */
 
 import * as THREE from 'three';
-import * as Astronomy from 'astronomy-engine';
-import tzLookup from 'tz-lookup';
 
 import { initializeScene, onWindowResize, disposeScene } from './rendering/scene';
 import {
@@ -16,24 +14,29 @@ import {
 import { createGraticule, createEquator } from './rendering/sphere-canvas';
 import { loadStars, createStarGeometry, getStarVisuals } from './rendering/objects/stars';
 import { loadConstellations } from './rendering/objects/constellations';
-import { createPlanets, updatePlanetPositions, updatePlanetAnimations } from './rendering/objects/planets';
+import { createPlanets, applyPlanetSnapshot, updatePlanetAnimations } from './rendering/objects/planets';
 import { updateHover, handleConstellationHover, handlePlanetHover } from './ui/interaction';
 import { getControlElements, parseSkyStateFromControls, handlePlaceSearch } from './ui/controls';
-import { reverseGeocode } from './astronomy/geolocation';
+import { getTimeZoneForCoordinates, reverseGeocode } from './astronomy/geolocation';
+import { createCelestialSnapshot } from './astronomy/celestial-snapshot';
 import { startIntroZoom, updateIntroZoom } from './animation/intro-zoom';
 import { shouldAutoRotate, updateAutoRotate } from './animation/auto-rotation';
-import { computeLST, buildSkyRotationMatrix, applyRotationMatrixToGroup, multiply3x3 } from './astronomy/calculations';
+import { applyRotationMatrixToGroup } from './astronomy/calculations';
 
-import { THEME } from './config/theme';
-import { SPHERE, CAMERA, CONTROLS, ANIMATION, STARS, PLANETS, CONSTELLATIONS } from './config/constants';
+import { SPHERE, ANIMATION } from './config/constants';
 import { DEFAULT_OBSERVER } from './config/defaults';
 
-import type { SkyState, IntroAnimState, ConstellationState, PlanetState } from './types';
+import type {
+  CelestialSnapshot,
+  SkyState,
+  IntroAnimState,
+  ConstellationState,
+  PlanetState,
+  ResolvedPlace,
+} from './types';
 
-const SPHERE_RADIUS = SPHERE.radius;
 const GRATICULE_STEP = SPHERE.graticulStep;
 const GRATICULE_SEGMENTS = SPHERE.graticuleSegments;
-const GLOBE_VIEW_THRESHOLD = CONTROLS.globeViewThreshold;
 
 const DEFAULT_SKY_STATE = DEFAULT_OBSERVER;
 
@@ -72,69 +75,57 @@ let currentSkyState: SkyState = { ...DEFAULT_SKY_STATE };
 let introAnim: IntroAnimState | null = null;
 let enableRotation = true;
 
-// --- Utility Functions (imported from calculations.ts) ---
+// --- Utility Functions ---
 
-function parseGmtOffset(text: string) {
-  const normalized = text.replace('UTC', 'GMT');
-  const match = normalized.match(/GMT([+-])(\d{1,2})(?::?(\d{2}))?/);
-  if (!match) return 0;
-  const sign = match[1] === '-' ? -1 : 1;
-  const hours = Number.parseInt(match[2], 10);
-  const minutes = Number.parseInt(match[3] ?? '0', 10);
-  return sign * (hours * 60 + minutes);
+function formatLocationDetails(state: SkyState): string {
+  return `${state.latitude.toFixed(4)}, ${state.longitude.toFixed(4)} | ${state.timeZone} | ${state.elevation} m`;
 }
 
-function formatOffsetMinutes(offsetMinutes: number) {
-  const sign = offsetMinutes >= 0 ? '+' : '-';
-  const absoluteMinutes = Math.abs(offsetMinutes);
-  const hours = Math.floor(absoluteMinutes / 60).toString().padStart(2, '0');
-  const minutes = (absoluteMinutes % 60).toString().padStart(2, '0');
-  return `${sign}${hours}:${minutes}`;
+function updateResolvedPlace(place: ResolvedPlace): void {
+  currentSkyState = {
+    ...currentSkyState,
+    placeName: place.name,
+    latitude: place.latitude,
+    longitude: place.longitude,
+    timeZone: place.timeZone,
+  };
+  uiElements.locationStatus.textContent = 'Resolved from place search';
+  uiElements.locationDetails.textContent = formatLocationDetails(currentSkyState);
 }
 
-function getTimeZoneOffsetMinutes(date: Date, timeZone: string) {
-  const formatter = new Intl.DateTimeFormat('en-US', {
+function updateSummary(snapshot: CelestialSnapshot) {
+  const date = new Date(snapshot.time.epochMs);
+  const timeZone = snapshot.time.timeZone;
+  const dateStr = date.toLocaleString('en-US', {
     timeZone,
-    timeZoneName: 'shortOffset',
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
   });
-  const parts = formatter.formatToParts(date);
-  const offsetPart = parts.find(p => p.type === 'timeZoneName');
-  if (!offsetPart) return 0;
-  return parseGmtOffset(offsetPart.value);
-}
-
-function makeObservationDate(date: string, time: string, timeZone: string): Date {
-  const localStr = `${date}T${time}`;
-  const localDate = new Date(localStr);
-  const offsetMinutes = getTimeZoneOffsetMinutes(localDate, timeZone);
-  return new Date(localDate.getTime() - offsetMinutes * 60000);
-}
-
-function updateSummary(state: SkyState) {
-  const date = new Date(makeObservationDate(state.date, state.time, state.timeZone));
-  const dateStr = date.toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
-  const timeStr = date.toLocaleString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
-  const offsetStr = formatOffsetMinutes(getTimeZoneOffsetMinutes(date, state.timeZone));
-  uiElements.skySummary.textContent = `${state.placeName} | ${dateStr} ${timeStr} ${offsetStr} | Elev: ${state.elevation}m`;
+  const timeStr = date.toLocaleString('en-US', {
+    timeZone,
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true,
+  });
+  uiElements.skySummary.textContent = `${snapshot.observer.placeName} | ${dateStr} ${timeStr} ${snapshot.time.offsetLabel} | Elev: ${snapshot.observer.elevation}m`;
 }
 
 async function applySkyState(state: SkyState) {
-  currentSkyState = state;
-  uiElements.placeNameInput.value = state.placeName;
-  uiElements.dateInput.value = state.date;
-  uiElements.timeInput.value = state.time;
-  uiElements.elevationInput.value = String(state.elevation);
+  const snapshot = createCelestialSnapshot(state);
+  currentSkyState = { ...state };
 
-  const observationDate = makeObservationDate(state.date, state.time, state.timeZone);
-  const observer = new Astronomy.Observer(state.latitude, state.longitude, state.elevation);
+  uiElements.placeNameInput.value = snapshot.observer.placeName;
+  uiElements.dateInput.value = snapshot.time.localDate;
+  uiElements.timeInput.value = snapshot.time.localTime;
+  uiElements.elevationInput.value = String(snapshot.observer.elevation);
+  uiElements.locationDetails.textContent = formatLocationDetails(currentSkyState);
 
-  updateSummary(state);
-  updatePlanetPositions(planets, state, observationDate, observer);
-
-  // Compute LST-based sky rotation for correct horizon alignment
-  const lst = computeLST(observationDate, state.longitude);
-  const rotationMatrix = buildSkyRotationMatrix(state.latitude, lst);
-  applyRotationMatrixToGroup(skyGroup, rotationMatrix);
+  updateSummary(snapshot);
+  applyPlanetSnapshot(planets, snapshot);
+  applyRotationMatrixToGroup(skyGroup, snapshot.frames.equatorialToRenderMatrix);
 }
 
 // --- Event Handlers ---
@@ -269,9 +260,7 @@ async function init() {
 
   // Setup UI interactions
   uiElements.searchPlaceButton.addEventListener('click', async () => {
-    await handlePlaceSearch(uiElements.placeNameInput.value, uiElements, (place) => {
-      uiElements.placeNameInput.value = place.name;
-    });
+    await handlePlaceSearch(uiElements.placeNameInput.value, uiElements, updateResolvedPlace);
   });
 
   uiElements.useMyLocationButton.addEventListener('click', async () => {
@@ -281,13 +270,23 @@ async function init() {
         let placeName = `${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`;
         try {
           const reversedPlace = await reverseGeocode(pos.coords.latitude, pos.coords.longitude);
-          placeName = reversedPlace.name;
+          placeName = reversedPlace;
         } catch {
           // use fallback coordinates above
         }
+        const elevation = Math.round(pos.coords.altitude || 0);
         uiElements.placeNameInput.value = placeName;
-        uiElements.elevationInput.value = String(Math.round(pos.coords.altitude || 0));
+        uiElements.elevationInput.value = String(elevation);
+        currentSkyState = {
+          ...currentSkyState,
+          placeName,
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+          elevation,
+          timeZone: getTimeZoneForCoordinates(pos.coords.latitude, pos.coords.longitude),
+        };
         uiElements.locationStatus.textContent = '';
+        uiElements.locationDetails.textContent = formatLocationDetails(currentSkyState);
       },
       () => {
         uiElements.locationStatus.textContent = 'Location access denied.';

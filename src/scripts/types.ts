@@ -12,6 +12,116 @@ export interface SkyState {
   timeZone: string;
 }
 
+export type Vec3Tuple = readonly [number, number, number];
+export type Matrix3Tuple = readonly [Vec3Tuple, Vec3Tuple, Vec3Tuple];
+export type DeepReadonly<T> =
+  T extends (...args: any[]) => unknown
+    ? T
+    : T extends readonly (infer U)[]
+      ? readonly DeepReadonly<U>[]
+      : T extends object
+        ? { readonly [K in keyof T]: DeepReadonly<T[K]> }
+        : T;
+
+export type CelestialBodyId =
+  | 'Sun'
+  | 'Moon'
+  | 'Mercury'
+  | 'Venus'
+  | 'Mars'
+  | 'Jupiter'
+  | 'Saturn'
+  | 'Uranus'
+  | 'Neptune'
+  | 'Pluto';
+
+export type UnsupportedAstrologyPointId = 'Chiron' | 'NorthNode' | 'SouthNode';
+
+export interface CelestialCoordinatesSnapshot {
+  frame: string;
+  rightAscensionHours?: number;
+  rightAscensionDeg?: number;
+  declinationDeg?: number;
+  azimuthDeg?: number;
+  altitudeDeg?: number;
+  longitudeDeg?: number;
+  latitudeDeg?: number;
+  distanceAu: number;
+  vectorAu: Vec3Tuple;
+  unitVector: Vec3Tuple;
+}
+
+export interface ZodiacPositionSnapshot {
+  frame: 'ECT';
+  longitudeDeg: number;
+  latitudeDeg: number;
+  distanceAu: number;
+  signName: string;
+  degreeInSign: number;
+}
+
+export interface CelestialBodySnapshot {
+  id: CelestialBodyId;
+  name: string;
+  apparent: {
+    equatorial: CelestialCoordinatesSnapshot & {
+      frame: 'EQJ';
+      rightAscensionHours: number;
+      rightAscensionDeg: number;
+      declinationDeg: number;
+    };
+    horizontal: CelestialCoordinatesSnapshot & {
+      frame: 'HOR';
+      azimuthDeg: number;
+      altitudeDeg: number;
+    };
+  };
+  astrology: {
+    ecliptic: ZodiacPositionSnapshot;
+    retrograde: boolean;
+    eclipticLongitudeVelocityDegPerDay: number;
+  };
+  illumination: {
+    magnitude: number;
+    phaseAngleDeg: number;
+    phaseFraction: number;
+  };
+}
+
+export interface UnsupportedAstrologyPointSnapshot {
+  id: UnsupportedAstrologyPointId;
+  reason: string;
+}
+
+export interface CelestialSnapshot {
+  readonly version: 1;
+  readonly input: DeepReadonly<SkyState>;
+  readonly observer: DeepReadonly<{
+    placeName: string;
+    latitude: number;
+    longitude: number;
+    elevation: number;
+    timeZone: string;
+  }>;
+  readonly time: DeepReadonly<{
+    localDate: string;
+    localTime: string;
+    timeZone: string;
+    utcIso: string;
+    epochMs: number;
+    offsetMinutes: number;
+    offsetLabel: string;
+    localSiderealTimeHours: number;
+  }>;
+  readonly frames: DeepReadonly<{
+    eqjToHorizonMatrix: Matrix3Tuple;
+    equatorialToRenderMatrix: Matrix3Tuple;
+  }>;
+  readonly bodies: readonly DeepReadonly<CelestialBodySnapshot>[];
+  readonly bodiesById: DeepReadonly<Record<CelestialBodyId, CelestialBodySnapshot>>;
+  readonly unavailableAstrologyPoints: readonly DeepReadonly<UnsupportedAstrologyPointSnapshot>[];
+}
+
 export interface ResolvedPlace {
   name: string;
   latitude: number;
@@ -48,8 +158,8 @@ export interface ConstellationState {
 }
 
 export interface PlanetState {
+  id: CelestialBodyId;
   name: string;
-  body: any; // Astronomy.Body
   baseSize: number;
   currentScale: number;
   pulsePhase: number;
@@ -57,10 +167,6 @@ export interface PlanetState {
   spinSpeed: number;
   sprite: any; // THREE.Sprite
   label: any; // CSS2DObject
-  eclipticLongitude?: number; // 0–360° tropical
-  retrograde?: boolean;
-  signName?: string;
-  degreeInSign?: number;
 }
 
 export interface IntroAnimState {

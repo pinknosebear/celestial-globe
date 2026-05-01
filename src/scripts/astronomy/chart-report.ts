@@ -2,7 +2,7 @@
  * Astrological chart report generation — convert sky state to text-based chart.
  */
 
-import type { PlanetState, SkyState } from '../types';
+import type { CelestialSnapshot, SkyState } from '../types';
 
 /**
  * Format ecliptic longitude as "Sign Degree'Minutes"".
@@ -22,19 +22,23 @@ function formatLongitude(eclipticLon: number): string {
 }
 
 /**
- * Generate a text-based astrological chart from current sky state.
- * Lists planets with their zodiac positions and retrograde status.
+ * Generate a text-based astrological chart from a celestial snapshot.
+ * Lists bodies with their zodiac positions and retrograde status.
  */
-export function generateChartReport(planets: PlanetState[], state: SkyState, date: Date): string {
+export function generateChartReport(snapshot: CelestialSnapshot): string {
   const lines: string[] = [];
+  const date = new Date(snapshot.time.epochMs);
+  const state = snapshot.input;
 
   const dateStr = date.toLocaleDateString('en-US', {
+    timeZone: snapshot.time.timeZone,
     weekday: 'long',
     year: 'numeric',
     month: 'long',
     day: 'numeric'
   });
   const timeStr = date.toLocaleTimeString('en-US', {
+    timeZone: snapshot.time.timeZone,
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
@@ -56,16 +60,20 @@ export function generateChartReport(planets: PlanetState[], state: SkyState, dat
   lines.push('───────────────────────────────────────────────────────');
   lines.push('');
 
-  const visiblePlanets = planets.filter(p =>
-    p.eclipticLongitude !== undefined && p.signName !== undefined
-  );
-
-  for (const planet of visiblePlanets) {
-    const lon = planet.eclipticLongitude!;
-    const retroSign = planet.retrograde ? ' (℞)' : '';
+  for (const body of snapshot.bodies) {
+    const lon = body.astrology.ecliptic.longitudeDeg;
+    const retroSign = body.astrology.retrograde ? ' (℞)' : '';
     const posStr = formatLongitude(lon);
-    const nameStr = `${planet.name.padEnd(10)} (${planet.body.name.padEnd(7)})`;
+    const nameStr = body.name.padEnd(10);
     lines.push(`${nameStr} ${posStr}${retroSign}`);
+  }
+
+  if (snapshot.unavailableAstrologyPoints.length > 0) {
+    lines.push('');
+    lines.push('Unavailable points:');
+    for (const point of snapshot.unavailableAstrologyPoints) {
+      lines.push(`${point.id}: ${point.reason}`);
+    }
   }
 
   lines.push('');
